@@ -1,477 +1,435 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { isSupabaseConfigured } from "./lib/supabase.js";
 import {
-  cloudEnabled,
-  cloudSignIn,
-  cloudSignOut,
-  getCloudSession,
-  saveSiteContent,
-  uploadImagesToCloud,
-  uploadVideosToCloud,
-} from "./cloud.js";
-import {
-  adminUi,
-  createProductDraft,
-  defaultSiteData,
-  parseLines,
-  parseSpecs,
-  useSiteData,
-} from "./siteData.js";
+  addProductImage,
+  createProduct,
+  deleteProduct,
+  deleteProductImage,
+  fetchProductImages,
+  fetchProducts,
+  fetchSiteSettings,
+  getSession,
+  signIn,
+  signOut,
+  updateProduct,
+  updateProductImage,
+  uploadProductImage,
+  uploadProductVideo,
+  upsertSiteSetting,
+} from "./lib/siteApi.js";
 
-const ADMIN_SESSION_KEY = "hengmao-admin-session";
-
-const adminIcons = {
-  site: "S",
-  home: "H",
-  about: "A",
-  products: "P",
-  contact: "C",
-  tools: "T",
+const EMPTY_FORM = {
+  name: "",
+  model: "",
+  category: "portable",
+  cover_url: "",
+  short_description: "",
+  description: "",
+  specsText: "",
+  featuresText: "",
+  video_url: "",
+  sort_order: 0,
+  is_active: true,
 };
 
-function slugifyCategoryKey(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+const DEFAULT_SETTINGS = {
+  branding: {
+    zhName: "上海恒猫机电",
+    enName: "Shanghai Hengmao Machinery",
+    zhSub: "洗车机与清洁配件供应商",
+    enSub: "Car Washer and Cleaning Accessories Supplier",
+  },
+  home: {
+    heroTag: "专业清洁设备供应商",
+    heroTitle: "洗车机与清洁配件解决方案",
+    heroDesc: "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品。",
+  },
+  about: {
+    title: "公司介绍",
+    body: "上海恒猫机电专注于洗车机及清洁配件的展示与供应。",
+  },
+  contact: {
+    email: "sales@hengmao.com",
+    phone: "+86-000-0000-0000",
+    address: "中国上海",
+    description: "欢迎联系上海恒猫机电获取产品资料和报价支持。",
+  },
+};
+
+const CATEGORY_OPTIONS = [
+  { value: "portable", label: "手提式洗车机" },
+  { value: "trolley", label: "推车款洗车机" },
+  { value: "water-gun", label: "水枪" },
+  { value: "high-pressure-hose", label: "高压管" },
+  { value: "steel-wire-hose", label: "钢丝管" },
+];
+
+function specsToText(specs) {
+  return Object.entries(specs || {})
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n");
+}
+
+function textToSpecs(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .reduce((specs, line) => {
+      const [key, ...rest] = line.split(":");
+      if (key?.trim()) {
+        specs[key.trim()] = rest.join(":").trim();
+      }
+      return specs;
+    }, {});
+}
+
+function textToFeatures(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function productToForm(product) {
+  if (!product) {
+    return EMPTY_FORM;
+  }
+  return {
+    name: product.name || "",
+    model: product.model || "",
+    category: product.category || "portable",
+    cover_url: product.cover_url || "",
+    short_description: product.short_description || "",
+    description: product.description || "",
+    specsText: specsToText(product.specs),
+    featuresText: (product.features || []).join("\n"),
+    video_url: product.video_url || "",
+    sort_order: product.sort_order || 0,
+    is_active: product.is_active !== false,
+  };
+}
+
+function formToPayload(form) {
+  return {
+    name: form.name.trim(),
+    model: form.model.trim(),
+    category: form.category.trim(),
+    cover_url: form.cover_url.trim() || null,
+    short_description: form.short_description.trim() || null,
+    description: form.description.trim() || null,
+    specs: textToSpecs(form.specsText),
+    features: textToFeatures(form.featuresText),
+    video_url: form.video_url.trim() || null,
+    sort_order: Number(form.sort_order) || 0,
+    is_active: Boolean(form.is_active),
+  };
 }
 
 function AdminApp() {
-  const [lang, setLang] = useState("zh");
-  const [siteData, setSiteData, hydrated] = useSiteData();
-  const [adminTab, setAdminTab] = useState("products");
-  const [adminProductId, setAdminProductId] = useState(siteData.products[0]?.id);
-  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem(ADMIN_SESSION_KEY) === "1");
-  const [loginForm, setLoginForm] = useState({ username: "admin", password: "" });
+  const [session, setSession] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
-  const [authMode, setAuthMode] = useState(cloudEnabled ? "cloud" : "local");
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [savingCloud, setSavingCloud] = useState(false);
-  const [categoryDraft, setCategoryDraft] = useState({ zh: "", en: "", key: "" });
-  const importInputRef = useRef(null);
-  const imageInputRef = useRef(null);
-  const videoInputRef = useRef(null);
+  const [products, setProducts] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [images, setImages] = useState([]);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState("");
+  const [tab, setTab] = useState("products");
 
-  const text = adminUi[lang];
-  const adminProduct =
-    siteData.products.find((product) => product.id === adminProductId) || siteData.products[0];
-  const categoryOptions = siteData.productCategories || [];
+  const selectedProduct = products.find((product) => product.id === selectedId);
 
-  useEffect(() => {
-    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
-    document.title = lang === "zh" ? "上海恒猫机电后台管理" : "Shanghai Hengmao Admin";
-  }, [lang]);
-
-  useEffect(() => {
-    if (!cloudEnabled) {
-      return;
+  const filteredProducts = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) {
+      return products;
     }
+    return products.filter((product) =>
+      [product.name, product.model, product.category].join(" ").toLowerCase().includes(keyword),
+    );
+  }, [products, search]);
 
-    getCloudSession().then((session) => {
-      if (session) {
-        setLoggedIn(true);
-        setAuthMode("cloud");
-      }
-    });
+  useEffect(() => {
+    document.documentElement.lang = "zh-CN";
+    document.title = "上海恒猫机电后台管理";
   }, []);
 
   useEffect(() => {
-    if (!cloudEnabled || !hydrated || !loggedIn || authMode !== "cloud") {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      setError("Supabase 未配置。请先设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。");
       return;
     }
 
-    const timer = window.setTimeout(async () => {
-      try {
-        setSavingCloud(true);
-        await saveSiteContent(siteData);
-      } finally {
-        setSavingCloud(false);
-      }
-    }, 700);
+    getSession()
+      .then((nextSession) => {
+        setSession(nextSession);
+      })
+      .catch((sessionError) => setError(sessionError.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-    return () => window.clearTimeout(timer);
-  }, [authMode, hydrated, loggedIn, siteData]);
-
-  const login = async () => {
-    if (authMode === "cloud" && cloudEnabled) {
-      try {
-        await cloudSignIn(loginForm.username, loginForm.password);
-        setLoggedIn(true);
-        setLoginError("");
-        return;
-      } catch (error) {
-        setLoginError(
-          error?.message ||
-            (lang === "zh" ? "云端登录失败，请检查 Supabase 配置和账号。" : "Cloud login failed."),
-        );
-        return;
-      }
+  useEffect(() => {
+    if (session) {
+      loadAll();
     }
+  }, [session]);
 
-    if (loginForm.username === "admin" && loginForm.password === "admin123") {
-      localStorage.setItem(ADMIN_SESSION_KEY, "1");
-      setLoggedIn(true);
+  useEffect(() => {
+    setForm(productToForm(selectedProduct));
+    if (selectedProduct?.id) {
+      loadImages(selectedProduct.id);
+    } else {
+      setImages([]);
+    }
+  }, [selectedProduct?.id]);
+
+  async function loadAll() {
+    try {
+      setLoading(true);
+      setError("");
+      const [nextProducts, nextSettings] = await Promise.all([
+        fetchProducts({ activeOnly: false }),
+        fetchSiteSettings(),
+      ]);
+      setProducts(nextProducts);
+      setSettings({
+        ...DEFAULT_SETTINGS,
+        ...nextSettings,
+        branding: { ...DEFAULT_SETTINGS.branding, ...(nextSettings.branding || {}) },
+        home: { ...DEFAULT_SETTINGS.home, ...(nextSettings.home || {}) },
+        about: { ...DEFAULT_SETTINGS.about, ...(nextSettings.about || {}) },
+        contact: { ...DEFAULT_SETTINGS.contact, ...(nextSettings.contact || {}) },
+      });
+      setSelectedId((current) => current || nextProducts[0]?.id || "");
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadImages(productId) {
+    try {
+      const nextImages = await fetchProductImages(productId);
+      setImages(nextImages);
+    } catch (loadError) {
+      setError(loadError.message);
+    }
+  }
+
+  async function handleLogin() {
+    try {
       setLoginError("");
+      const { session: nextSession } = await signIn(loginForm.email, loginForm.password);
+      setSession(nextSession);
+    } catch (signInError) {
+      setLoginError(signInError.message || "登录失败，请检查邮箱、密码和 Supabase Auth 用户。");
+    }
+  }
+
+  async function handleLogout() {
+    await signOut();
+    setSession(null);
+    setProducts([]);
+    setSelectedId("");
+  }
+
+  function updateForm(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function saveProduct() {
+    try {
+      setStatus("正在保存产品...");
+      setError("");
+      const payload = formToPayload(form);
+      if (!payload.name || !payload.model || !payload.category) {
+        throw new Error("产品名称、型号、分类不能为空。");
+      }
+
+      if (selectedProduct) {
+        await updateProduct(selectedProduct.id, payload);
+      } else {
+        const created = await createProduct(payload);
+        setSelectedId(created.id);
+      }
+      await loadAll();
+      setStatus("产品已保存。");
+    } catch (saveError) {
+      setError(saveError.message);
+      setStatus("");
+    }
+  }
+
+  async function removeProduct(product) {
+    if (!window.confirm(`确认删除 ${product.name}？`)) {
       return;
     }
-
-    setLoginError(
-      lang === "zh"
-        ? "账号或密码不正确。演示账号：admin / admin123"
-        : "Invalid credentials. Demo account: admin / admin123",
-    );
-  };
-
-  const logout = async () => {
-    if (authMode === "cloud" && cloudEnabled) {
-      await cloudSignOut();
+    try {
+      await deleteProduct(product.id);
+      setSelectedId("");
+      await loadAll();
+      setStatus("产品已删除。");
+    } catch (deleteError) {
+      setError(deleteError.message);
     }
-    localStorage.removeItem(ADMIN_SESSION_KEY);
-    setLoggedIn(false);
-    setLoginForm({ username: authMode === "cloud" ? "" : "admin", password: "" });
-  };
+  }
 
-  const updateBranding = (field, value) => {
-    setSiteData((current) => ({
-      ...current,
-      branding: {
-        ...current.branding,
-        [field]: value,
-      },
-    }));
-  };
-
-  const updateContact = (field, value) => {
-    setSiteData((current) => ({
-      ...current,
-      contact: {
-        ...current.contact,
-        [field]: value,
-      },
-    }));
-  };
-
-  const updateHome = (section, langKey, value) => {
-    setSiteData((current) => ({
-      ...current,
-      home: {
-        ...current.home,
-        [section]: {
-          ...current.home[section],
-          [langKey]: value,
-        },
-      },
-    }));
-  };
-
-  const updateStrength = (index, field, value) => {
-    setSiteData((current) => ({
-      ...current,
-      home: {
-        ...current.home,
-        strengths: current.home.strengths.map((item, itemIndex) =>
-          itemIndex === index ? { ...item, [field]: value } : item,
-        ),
-      },
-    }));
-  };
-
-  const updateAbout = (section, langKey, value) => {
-    setSiteData((current) => ({
-      ...current,
-      about: {
-        ...current.about,
-        [section]: {
-          ...current.about[section],
-          [langKey]: value,
-        },
-      },
-    }));
-  };
-
-  const updateAboutPoint = (index, langKey, value) => {
-    setSiteData((current) => ({
-      ...current,
-      about: {
-        ...current.about,
-        points: current.about.points.map((item, itemIndex) =>
-          itemIndex === index ? { ...item, [langKey]: value } : item,
-        ),
-      },
-    }));
-  };
-
-  const updateProduct = (productId, updater) => {
-    setSiteData((current) => ({
-      ...current,
-      products: current.products.map((product) =>
-        product.id === productId ? updater(product) : product,
-      ),
-    }));
-  };
-
-  const addProduct = () => {
-    const nextProduct = createProductDraft(categoryOptions[0]?.key || "portable");
-    setSiteData((current) => ({
-      ...current,
-      products: [nextProduct, ...current.products],
-    }));
-    setAdminProductId(nextProduct.id);
-  };
-
-  const updateCategory = (categoryKey, field, value) => {
-    setSiteData((current) => ({
-      ...current,
-      productCategories: current.productCategories.map((category) =>
-        category.key === categoryKey ? { ...category, [field]: value } : category,
-      ),
-    }));
-  };
-
-  const addCategory = () => {
-    const nextKey = slugifyCategoryKey(categoryDraft.key || categoryDraft.en || categoryDraft.zh);
-    if (!nextKey || !categoryDraft.zh.trim() || !categoryDraft.en.trim()) {
-      return;
+  async function toggleProduct(product) {
+    try {
+      await updateProduct(product.id, { is_active: !product.is_active });
+      await loadAll();
+      setStatus(product.is_active ? "产品已下架。" : "产品已上架。");
+    } catch (toggleError) {
+      setError(toggleError.message);
     }
-    if (categoryOptions.some((item) => item.key === nextKey)) {
-      window.alert(lang === "zh" ? "分类代码已存在，请换一个。" : "Category key already exists.");
-      return;
-    }
+  }
 
-    setSiteData((current) => ({
-      ...current,
-      productCategories: [
-        ...current.productCategories,
-        {
-          key: nextKey,
-          zh: categoryDraft.zh.trim(),
-          en: categoryDraft.en.trim(),
-        },
-      ],
-    }));
-    setCategoryDraft({ zh: "", en: "", key: "" });
-  };
-
-  const removeCategory = (categoryKey) => {
-    if (categoryOptions.length <= 1) {
-      return;
-    }
-
-    const fallbackCategory = categoryOptions.find((item) => item.key !== categoryKey);
-    if (!fallbackCategory) {
-      return;
-    }
-
-    setSiteData((current) => ({
-      ...current,
-      productCategories: current.productCategories.filter((category) => category.key !== categoryKey),
-      products: current.products.map((product) =>
-        product.type === categoryKey ? { ...product, type: fallbackCategory.key } : product,
-      ),
-    }));
-  };
-
-  const deleteProduct = () => {
-    if (siteData.products.length <= 1) {
-      return;
-    }
-    const nextProducts = siteData.products.filter((product) => product.id !== adminProductId);
-    setSiteData((current) => ({
-      ...current,
-      products: nextProducts,
-    }));
-    setAdminProductId(nextProducts[0].id);
-  };
-
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(siteData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "hengmao-site-config.json";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importData = async (event) => {
-    const file = event.target.files?.[0];
+  async function handleCoverUpload(file) {
     if (!file) {
       return;
     }
-    const textContent = await file.text();
     try {
-      const parsed = JSON.parse(textContent);
-      setSiteData(parsed);
-      if (parsed.products?.[0]?.id) {
-        setAdminProductId(parsed.products[0].id);
+      setUploading("cover");
+      const url = await uploadProductImage(file, "covers");
+      updateForm("cover_url", url);
+      if (selectedProduct) {
+        await updateProduct(selectedProduct.id, { cover_url: url });
+        await loadAll();
       }
-    } catch {
-      window.alert("导入失败，请检查 JSON 文件格式。");
-    }
-    event.target.value = "";
-  };
-
-  const toDataUrls = async (files) => {
-    return Promise.all(
-      files.map(
-        (file) =>
-          new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }),
-      ),
-    );
-  };
-
-  const handleImageUpload = async (files) => {
-    if (!files.length || !adminProduct) {
-      return;
-    }
-
-    setUploadingImages(true);
-    try {
-      const uploadedImages =
-        authMode === "cloud" && cloudEnabled
-          ? await uploadImagesToCloud(files)
-          : await toDataUrls(files);
-
-      updateProduct(adminProduct.id, (product) => ({
-        ...product,
-        images: [...product.images, ...uploadedImages],
-      }));
+      setStatus("主图已上传。");
+    } catch (uploadError) {
+      setError(uploadError.message);
     } finally {
-      setUploadingImages(false);
+      setUploading("");
     }
-  };
+  }
 
-  const handleVideoUpload = async (files) => {
-    if (!files.length || !adminProduct) {
+  async function handleDetailImages(files) {
+    if (!selectedProduct || !files.length) {
+      setError("请先保存产品，再上传详情图。");
       return;
     }
-
-    if (!(authMode === "cloud" && cloudEnabled)) {
-      window.alert(
-        lang === "zh"
-          ? "本地演示模式不能直接保存视频文件。请先配置 Supabase 云端存储，或把视频上传到云盘/对象存储后填写可直接播放的视频链接。"
-          : "Local demo mode cannot save video files. Configure Supabase cloud storage, or paste a direct playable video URL.",
-      );
-      return;
-    }
-
-    setUploadingVideo(true);
     try {
-      const uploadedVideos = await uploadVideosToCloud(files);
-
-      updateProduct(adminProduct.id, (product) => ({
-        ...product,
-        video: uploadedVideos[0] || product.video,
-      }));
-    } finally {
-      setUploadingVideo(false);
-    }
-  };
-
-  const setAsMainImage = (indexToPromote) => {
-    updateProduct(adminProduct.id, (product) => {
-      const nextImages = [...product.images];
-      const [target] = nextImages.splice(indexToPromote, 1);
-      nextImages.unshift(target);
-      return { ...product, images: nextImages };
-    });
-  };
-
-  const moveImage = (indexToMove, direction) => {
-    updateProduct(adminProduct.id, (product) => {
-      const nextIndex = indexToMove + direction;
-      if (nextIndex < 0 || nextIndex >= product.images.length) {
-        return product;
+      setUploading("images");
+      for (const file of files) {
+        const url = await uploadProductImage(file, "details");
+        await addProductImage(selectedProduct.id, url, images.length);
       }
-      const nextImages = [...product.images];
-      [nextImages[indexToMove], nextImages[nextIndex]] = [
-        nextImages[nextIndex],
-        nextImages[indexToMove],
-      ];
-      return { ...product, images: nextImages };
-    });
-  };
+      await loadImages(selectedProduct.id);
+      setStatus("详情图已上传。");
+    } catch (uploadError) {
+      setError(uploadError.message);
+    } finally {
+      setUploading("");
+    }
+  }
 
-  const removeImage = (indexToRemove) => {
-    updateProduct(adminProduct.id, (product) => ({
-      ...product,
-      images: product.images.filter((_, index) => index !== indexToRemove),
+  async function handleVideoUpload(file) {
+    if (!file) {
+      return;
+    }
+    try {
+      setUploading("video");
+      const url = await uploadProductVideo(file);
+      updateForm("video_url", url);
+      if (selectedProduct) {
+        await updateProduct(selectedProduct.id, { video_url: url });
+        await loadAll();
+      }
+      setStatus("视频已上传。");
+    } catch (uploadError) {
+      setError(uploadError.message);
+    } finally {
+      setUploading("");
+    }
+  }
+
+  async function removeImage(image) {
+    try {
+      await deleteProductImage(image.id);
+      await loadImages(selectedProduct.id);
+      setStatus("详情图记录已删除。");
+    } catch (deleteError) {
+      setError(deleteError.message);
+    }
+  }
+
+  async function saveImageSort(image, sortOrder) {
+    try {
+      await updateProductImage(image.id, { sort_order: Number(sortOrder) || 0 });
+      await loadImages(selectedProduct.id);
+    } catch (sortError) {
+      setError(sortError.message);
+    }
+  }
+
+  function updateSetting(section, field, value) {
+    setSettings((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        [field]: value,
+      },
     }));
-  };
+  }
 
-  if (!loggedIn) {
+  async function saveSettings() {
+    try {
+      setStatus("正在保存公司信息...");
+      await Promise.all(
+        ["branding", "home", "about", "contact"].map((key) => upsertSiteSetting(key, settings[key])),
+      );
+      setStatus("公司信息已保存。");
+    } catch (settingError) {
+      setError(settingError.message);
+    }
+  }
+
+  if (loading) {
+    return <div className="empty-state">正在加载后台...</div>;
+  }
+
+  if (!session) {
     return (
       <div className="site-shell admin-login-shell">
         <div className="admin-login-card">
           <div className="brand admin-login-brand">
             <span className="brand-mark">HM</span>
             <span>
-              <strong>{lang === "zh" ? "管理后台登录" : "Admin Login"}</strong>
-              <small>
-                {authMode === "cloud" && cloudEnabled
-                  ? lang === "zh"
-                    ? "Supabase 云端登录已启用"
-                    : "Supabase cloud auth enabled"
-                  : lang === "zh"
-                    ? "演示账号：admin / admin123"
-                    : "Demo account: admin / admin123"}
-              </small>
+              <strong>上海恒猫机电后台</strong>
+              <small>Supabase Auth 邮箱密码登录</small>
             </span>
           </div>
 
           <div className="admin-login-form">
-            {cloudEnabled ? (
-              <div className="auth-mode-switch">
-                <button className={authMode === "cloud" ? "tab active" : "tab"} onClick={() => setAuthMode("cloud")}>
-                  {lang === "zh" ? "云端账号" : "Cloud Auth"}
-                </button>
-                <button className={authMode === "local" ? "tab active" : "tab"} onClick={() => setAuthMode("local")}>
-                  {lang === "zh" ? "本地演示" : "Local Demo"}
-                </button>
-              </div>
-            ) : null}
-
-            <label className="admin-field">
-              <span>{authMode === "cloud" ? (lang === "zh" ? "邮箱" : "Email") : lang === "zh" ? "账号" : "Username"}</span>
-              <input
-                value={loginForm.username}
-                onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
-              />
-            </label>
-
-            <label className="admin-field">
-              <span>{lang === "zh" ? "密码" : "Password"}</span>
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    login();
-                  }
-                }}
-              />
-            </label>
-
+            {!isSupabaseConfigured ? <div className="login-error">{error}</div> : null}
+            <AdminField
+              label="邮箱"
+              value={loginForm.email}
+              onChange={(value) => setLoginForm((current) => ({ ...current, email: value }))}
+            />
+            <AdminField
+              label="密码"
+              type="password"
+              value={loginForm.password}
+              onChange={(value) => setLoginForm((current) => ({ ...current, password: value }))}
+              onEnter={handleLogin}
+            />
             {loginError ? <div className="login-error">{loginError}</div> : null}
-
             <div className="admin-login-actions">
-              <button className="primary-btn" onClick={login}>
-                {lang === "zh" ? "登录后台" : "Sign In"}
+              <button className="primary-btn" onClick={handleLogin} disabled={!isSupabaseConfigured}>
+                登录后台
               </button>
-              <button className="secondary-btn" onClick={() => setLang(lang === "zh" ? "en" : "zh")}>
-                {text.switchLabel}
+              <button className="secondary-btn" onClick={() => window.location.assign("/")}>
+                返回官网
               </button>
             </div>
           </div>
@@ -480,352 +438,184 @@ function AdminApp() {
     );
   }
 
-  if (!adminProduct) {
-    return null;
-  }
-
   return (
     <div className="site-shell">
       <header className="topbar">
         <button className="brand" onClick={() => window.location.assign("/")}>
           <span className="brand-mark">HM</span>
           <span>
-            <strong>{text.admin}</strong>
-            <small>{lang === "zh" ? siteData.branding.zhName : siteData.branding.enName}</small>
+            <strong>上海恒猫机电后台</strong>
+            <small>Supabase 实时内容管理</small>
           </span>
         </button>
 
         <div className="topbar-right">
           <nav className="nav">
-            <button onClick={() => window.location.assign("/")}>{text.viewPublic}</button>
-            <button onClick={logout}>{lang === "zh" ? "退出登录" : "Logout"}</button>
+            <button onClick={() => window.location.assign("/")}>查看官网</button>
+            <button onClick={handleLogout}>退出登录</button>
           </nav>
-          <button className="lang-switch" onClick={() => setLang(lang === "zh" ? "en" : "zh")}>
-            {text.switchLabel}
-          </button>
         </div>
       </header>
 
       <main className="page admin-page">
         <div className="section-heading compact">
-          <p className="eyebrow">{text.admin}</p>
-          <h1>{text.adminTitle}</h1>
-          <p>{text.adminDesc}</p>
+          <p className="eyebrow">Admin</p>
+          <h1>内容管理系统</h1>
+          <p>产品、图片、视频和公司信息均保存到 Supabase，Vercel 与 Cloudflare 会读取同一份数据。</p>
         </div>
+
+        {status ? <div className="admin-note">{status}</div> : null}
+        {error ? <div className="login-error">{error}</div> : null}
 
         <section className="admin-layout">
           <aside className="admin-sidebar card">
-            {["site", "home", "about", "products", "contact", "tools"].map((tabKey) => (
-              <button
-                key={tabKey}
-                className={adminTab === tabKey ? "admin-nav active" : "admin-nav"}
-                onClick={() => setAdminTab(tabKey)}
-              >
-                <span className="admin-nav-icon">{adminIcons[tabKey]}</span>
-                <span>{text[`admin${tabKey.charAt(0).toUpperCase()}${tabKey.slice(1)}`]}</span>
-              </button>
-            ))}
-            <div className="admin-save-state">
-              {savingCloud
-                ? lang === "zh"
-                  ? "正在同步云端..."
-                  : "Syncing to cloud..."
-                : text.saveState}
-            </div>
+            <button className={tab === "products" ? "admin-nav active" : "admin-nav"} onClick={() => setTab("products")}>
+              <span className="admin-nav-icon">P</span>
+              <span>产品管理</span>
+            </button>
+            <button className={tab === "settings" ? "admin-nav active" : "admin-nav"} onClick={() => setTab("settings")}>
+              <span className="admin-nav-icon">S</span>
+              <span>公司信息</span>
+            </button>
+            <div className="admin-save-state">已连接 Supabase</div>
           </aside>
 
           <div className="admin-main">
-            {adminTab === "site" && (
-              <div className="admin-card-grid">
-                <article className="card">
-                  <h3>{text.adminSite}</h3>
-                  <AdminField label={text.formZhName} value={siteData.branding.zhName} onChange={(value) => updateBranding("zhName", value)} />
-                  <AdminField label={text.formEnName} value={siteData.branding.enName} onChange={(value) => updateBranding("enName", value)} />
-                  <AdminField label={text.formZhSub} value={siteData.branding.zhSub} onChange={(value) => updateBranding("zhSub", value)} />
-                  <AdminField label={text.formEnSub} value={siteData.branding.enSub} onChange={(value) => updateBranding("enSub", value)} />
-                </article>
-              </div>
-            )}
-
-            {adminTab === "home" && (
-              <div className="admin-card-grid">
-                <article className="card">
-                  <h3>{text.adminHome}</h3>
-                  <AdminField label={`${text.heroTag} / 中文`} value={siteData.home.heroTag.zh} onChange={(value) => updateHome("heroTag", "zh", value)} />
-                  <AdminField label={`${text.heroTag} / English`} value={siteData.home.heroTag.en} onChange={(value) => updateHome("heroTag", "en", value)} />
-                  <AdminField label={`${text.heroTitle} / 中文`} value={siteData.home.heroTitle.zh} onChange={(value) => updateHome("heroTitle", "zh", value)} />
-                  <AdminField label={`${text.heroTitle} / English`} value={siteData.home.heroTitle.en} onChange={(value) => updateHome("heroTitle", "en", value)} />
-                  <AdminTextarea label={`${text.heroDesc} / 中文`} value={siteData.home.heroDesc.zh} onChange={(value) => updateHome("heroDesc", "zh", value)} />
-                  <AdminTextarea label={`${text.heroDesc} / English`} value={siteData.home.heroDesc.en} onChange={(value) => updateHome("heroDesc", "en", value)} />
-                </article>
-
-                {siteData.home.strengths.map((item, index) => (
-                  <article className="card" key={`${item.zhTitle}-${index}`}>
-                    <h3>{`${text.adminHome} ${index + 1}`}</h3>
-                    <AdminField label={text.zhTitle} value={item.zhTitle} onChange={(value) => updateStrength(index, "zhTitle", value)} />
-                    <AdminField label={text.enTitle} value={item.enTitle} onChange={(value) => updateStrength(index, "enTitle", value)} />
-                    <AdminTextarea label={text.zhText} value={item.zhText} onChange={(value) => updateStrength(index, "zhText", value)} />
-                    <AdminTextarea label={text.enText} value={item.enText} onChange={(value) => updateStrength(index, "enText", value)} />
-                  </article>
-                ))}
-              </div>
-            )}
-
-            {adminTab === "about" && (
-              <div className="admin-card-grid">
-                <article className="card">
-                  <h3>{text.adminAbout}</h3>
-                  <AdminField label={text.zhTitle} value={siteData.about.title.zh} onChange={(value) => updateAbout("title", "zh", value)} />
-                  <AdminField label={text.enTitle} value={siteData.about.title.en} onChange={(value) => updateAbout("title", "en", value)} />
-                  <AdminTextarea label={text.zhText} value={siteData.about.body.zh} onChange={(value) => updateAbout("body", "zh", value)} />
-                  <AdminTextarea label={text.enText} value={siteData.about.body.en} onChange={(value) => updateAbout("body", "en", value)} />
-                </article>
-
-                {siteData.about.points.map((item, index) => (
-                  <article className="card" key={`${item.zh}-${index}`}>
-                    <h3>{`Point ${index + 1}`}</h3>
-                    <AdminField label={text.zhText} value={item.zh} onChange={(value) => updateAboutPoint(index, "zh", value)} />
-                    <AdminField label={text.enText} value={item.en} onChange={(value) => updateAboutPoint(index, "en", value)} />
-                  </article>
-                ))}
-              </div>
-            )}
-
-            {adminTab === "products" && (
+            {tab === "products" ? (
               <div className="admin-products-layout">
-                <article className="card admin-category-panel">
+                <article className="card admin-product-list">
                   <div className="admin-list-head">
-                    <h3>{lang === "zh" ? "产品分类管理" : "Category Manager"}</h3>
-                    <button className="secondary-btn small-btn" onClick={addCategory}>
-                      {lang === "zh" ? "新增分类" : "Add Category"}
-                    </button>
-                  </div>
-
-                  <div className="admin-category-compact">
-                    <div className="admin-category-compact-form">
-                      <AdminField
-                        label={lang === "zh" ? "分类名称 / 中文" : "Category Name / Chinese"}
-                        value={categoryDraft.zh}
-                        onChange={(value) => setCategoryDraft((current) => ({ ...current, zh: value }))}
-                      />
-                      <AdminField
-                        label={lang === "zh" ? "分类名称 / 英文" : "Category Name / English"}
-                        value={categoryDraft.en}
-                        onChange={(value) => setCategoryDraft((current) => ({ ...current, en: value }))}
-                      />
-                      <AdminField
-                        label={lang === "zh" ? "分类代码" : "Category Key"}
-                        value={categoryDraft.key}
-                        onChange={(value) => setCategoryDraft((current) => ({ ...current, key: value }))}
-                      />
-                    </div>
-
-                    <div className="admin-category-pill-list">
-                      {categoryOptions.map((category) => (
-                        <div key={category.key} className="admin-category-pill">
-                          <div className="admin-category-pill-copy">
-                            <strong>{category[lang]}</strong>
-                            <span>{category.key}</span>
-                          </div>
-                          <button className="text-btn" onClick={() => removeCategory(category.key)}>
-                            {lang === "zh" ? "删除" : "Remove"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </article>
-
-                <article className="card admin-product-editor">
-                  <div className="admin-list-head">
-                    <h3>{text.productEditor}</h3>
-                    <div className="admin-tools-row admin-list-actions">
-                      <button className="primary-btn small-btn" onClick={addProduct}>
-                        {text.addProduct}
-                      </button>
-                      <button className="secondary-btn small-btn" onClick={deleteProduct}>
-                        {text.deleteProduct}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="admin-product-items admin-product-items-inline">
-                    {siteData.products.map((product) => (
-                      <button
-                        key={product.id}
-                        className={adminProductId === product.id ? "admin-product-item active" : "admin-product-item"}
-                        onClick={() => setAdminProductId(product.id)}
-                      >
-                        <img src={product.images[0]} alt="" />
-                        <div>
-                          <strong>{product.model}</strong>
-                          <span>{product.name[lang]}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="form-grid two-col">
-                    <AdminSelect
-                      label={text.category}
-                      value={adminProduct.type}
-                      options={categoryOptions.map((option) => ({
-                        value: option.key,
-                        label: option[lang],
-                      }))}
-                      onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, type: value }))}
-                    />
-                    <AdminField label={text.model} value={adminProduct.model} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, model: value }))} />
-                    <AdminField
-                      label={lang === "zh" ? "产品价格（人民币）" : "Base Price (RMB)"}
-                      helper={lang === "zh" ? "前台中文显示 RMB，英文会自动换算成 USD。" : "Stored in RMB. The English site converts it to USD automatically."}
-                      value={adminProduct.price}
-                      onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, price: value }))}
-                    />
-                    <div className="admin-note">{text.uploadTip}</div>
-                  </div>
-
-                  <div className="form-grid two-col">
-                    <AdminField label={text.formZhName} value={adminProduct.name.zh} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, name: { ...product.name, zh: value } }))} />
-                    <AdminField label={text.formEnName} value={adminProduct.name.en} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, name: { ...product.name, en: value } }))} />
-                    <AdminTextarea label={`${text.shortDesc} / 中文`} value={adminProduct.short.zh} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, short: { ...product.short, zh: value } }))} />
-                    <AdminTextarea label={`${text.shortDesc} / English`} value={adminProduct.short.en} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, short: { ...product.short, en: value } }))} />
-                  </div>
-
-                  <div className="form-grid two-col">
-                    <AdminTextarea label={`${text.intro} / 中文`} value={adminProduct.intro.zh} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, intro: { ...product.intro, zh: value } }))} />
-                    <AdminTextarea label={`${text.intro} / English`} value={adminProduct.intro.en} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, intro: { ...product.intro, en: value } }))} />
-                  </div>
-
-                  <div className="form-grid two-col">
-                    <AdminTextarea label={`${text.features} / 中文`} helper={text.featureTip} value={adminProduct.features.zh.join("\n")} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, features: { ...product.features, zh: parseLines(value) } }))} />
-                    <AdminTextarea label={`${text.features} / English`} helper={text.featureTip} value={adminProduct.features.en.join("\n")} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, features: { ...product.features, en: parseLines(value) } }))} />
-                  </div>
-
-                  <div className="form-grid two-col">
-                    <AdminTextarea label={text.specs} helper={text.specTip} value={adminProduct.specs.map((item) => `${item.label}: ${item.value}`).join("\n")} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, specs: parseSpecs(value) }))} />
-                    <AdminTextarea label={text.images} helper={text.imageTip} value={adminProduct.images.join("\n")} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, images: parseLines(value) }))} />
-                  </div>
-
-                  <div className="admin-upload-strip admin-tools-row">
-                    <button className="secondary-btn small-btn" onClick={() => imageInputRef.current?.click()}>
-                      {uploadingImages ? (lang === "zh" ? "图片上传中..." : "Uploading images...") : lang === "zh" ? "上传图片" : "Upload Images"}
-                    </button>
-                    <input
-                      ref={imageInputRef}
-                      className="hidden-input"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(event) => {
-                        handleImageUpload(Array.from(event.target.files || []));
-                        event.target.value = "";
+                    <h3>产品列表</h3>
+                    <button
+                      className="primary-btn small-btn"
+                      onClick={() => {
+                        setSelectedId("");
+                        setForm(EMPTY_FORM);
+                        setImages([]);
                       }}
-                    />
-
-                    <button className="secondary-btn small-btn" onClick={() => videoInputRef.current?.click()}>
-                      {uploadingVideo ? (lang === "zh" ? "视频上传中..." : "Uploading video...") : lang === "zh" ? "上传视频" : "Upload Video"}
-                    </button>
-                    <input
-                      ref={videoInputRef}
-                      className="hidden-input"
-                      type="file"
-                      accept="video/*"
-                      onChange={(event) => {
-                        handleVideoUpload(Array.from(event.target.files || []));
-                        event.target.value = "";
-                      }}
-                    />
-                  </div>
-
-                  <div className="admin-image-gallery">
-                    {adminProduct.images.map((image, index) => (
-                      <div key={`${image}-${index}`} className="admin-image-card">
-                        <img src={image} alt="" />
-                        <div className="admin-image-actions">
-                          <button className="text-btn" onClick={() => setAsMainImage(index)}>
-                            {index === 0 ? (lang === "zh" ? "当前主图" : "Main Image") : lang === "zh" ? "设为主图" : "Set Main"}
-                          </button>
-                          <button className="text-btn" onClick={() => moveImage(index, -1)}>
-                            {lang === "zh" ? "上移" : "Up"}
-                          </button>
-                          <button className="text-btn" onClick={() => moveImage(index, 1)}>
-                            {lang === "zh" ? "下移" : "Down"}
-                          </button>
-                          <button className="text-btn" onClick={() => removeImage(index)}>
-                            {lang === "zh" ? "删除" : "Remove"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <AdminField label={text.video} helper={text.videoTip} value={adminProduct.video} onChange={(value) => updateProduct(adminProduct.id, (product) => ({ ...product, video: value }))} />
-                  <video className="video-player admin-video-preview" controls src={adminProduct.video} />
-
-                  <div className="card admin-preview-card">
-                    <h3>{text.livePreview}</h3>
-                    <div className="admin-preview">
-                      <img src={adminProduct.images[0]} alt="" />
-                      <div>
-                        <p>{adminProduct.model}</p>
-                        <h4>{adminProduct.name[lang]}</h4>
-                        <strong>{adminProduct.price}</strong>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              </div>
-            )}
-
-            {adminTab === "contact" && (
-              <div className="admin-card-grid">
-                <article className="card">
-                  <h3>{text.adminContact}</h3>
-                  <AdminField label="Email" value={siteData.contact.email} onChange={(value) => updateContact("email", value)} />
-                  <AdminField label="Phone / WhatsApp" value={siteData.contact.phone} onChange={(value) => updateContact("phone", value)} />
-                  <AdminField label="地址 / 中文" value={siteData.contact.addressZh} onChange={(value) => updateContact("addressZh", value)} />
-                  <AdminField label="Address / English" value={siteData.contact.addressEn} onChange={(value) => updateContact("addressEn", value)} />
-                  <AdminTextarea label={text.descZh} value={siteData.contact.descZh} onChange={(value) => updateContact("descZh", value)} />
-                  <AdminTextarea label={text.descEn} value={siteData.contact.descEn} onChange={(value) => updateContact("descEn", value)} />
-                </article>
-              </div>
-            )}
-
-            {adminTab === "tools" && (
-              <div className="admin-card-grid">
-                <article className="card">
-                  <h3>{text.adminTools}</h3>
-                  <p>{text.uploadTip}</p>
-                  <div className="admin-tools-row">
-                    <button className="primary-btn small-btn" onClick={exportData}>
-                      {text.exportData}
-                    </button>
-                    <button className="secondary-btn small-btn" onClick={() => importInputRef.current?.click()}>
-                      {text.importData}
-                    </button>
-                    <button className="secondary-btn small-btn" onClick={resetData}>
-                      {text.resetData}
+                    >
+                      新增产品
                     </button>
                   </div>
                   <input
-                    ref={importInputRef}
-                    type="file"
-                    accept="application/json"
-                    className="hidden-input"
-                    onChange={importData}
+                    className="search-input"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="搜索型号或名称"
                   />
-                  <div className="admin-note">
-                    {cloudEnabled
-                      ? lang === "zh"
-                        ? "当前已检测到 Supabase 配置。前台会优先读取云端配置，后台会自动同步到云端。"
-                        : "Supabase configuration detected. The public site reads cloud content and the admin syncs changes to cloud."
-                      : lang === "zh"
-                        ? "当前为本地模式。配置 .env 中的 Supabase 参数后即可切换到正式云端账号系统。"
-                        : "Local mode is active. Add Supabase environment variables to enable real cloud auth and uploads."}
+                  <div className="admin-product-picker">
+                    {filteredProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        className={selectedId === product.id ? "admin-product-item active" : "admin-product-item"}
+                        onClick={() => setSelectedId(product.id)}
+                      >
+                        <span>
+                          <strong>{product.name}</strong>
+                          <small>{product.model}</small>
+                        </span>
+                        <em>{product.is_active ? "已上架" : "已下架"}</em>
+                      </button>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="card admin-editor">
+                  <div className="admin-list-head">
+                    <h3>{selectedProduct ? "编辑产品" : "新增产品"}</h3>
+                    {selectedProduct ? (
+                      <div className="admin-tools-row">
+                        <button className="secondary-btn small-btn" onClick={() => toggleProduct(selectedProduct)}>
+                          {selectedProduct.is_active ? "下架" : "上架"}
+                        </button>
+                        <button className="secondary-btn small-btn" onClick={() => removeProduct(selectedProduct)}>
+                          删除
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="form-grid two-col">
+                    <AdminField label="产品名称" value={form.name} onChange={(value) => updateForm("name", value)} />
+                    <AdminField label="产品型号" value={form.model} onChange={(value) => updateForm("model", value)} />
+                    <AdminSelect label="产品分类" value={form.category} options={CATEGORY_OPTIONS} onChange={(value) => updateForm("category", value)} />
+                    <AdminField label="排序" type="number" value={form.sort_order} onChange={(value) => updateForm("sort_order", value)} />
+                  </div>
+
+                  <label className="admin-field admin-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={form.is_active}
+                      onChange={(event) => updateForm("is_active", event.target.checked)}
+                    />
+                    <span>上架显示</span>
+                  </label>
+
+                  <AdminTextarea label="短描述" value={form.short_description} onChange={(value) => updateForm("short_description", value)} />
+                  <AdminTextarea label="详情描述" value={form.description} onChange={(value) => updateForm("description", value)} />
+                  <div className="form-grid two-col">
+                    <AdminTextarea
+                      label="产品特点"
+                      helper="每行一个特点"
+                      value={form.featuresText}
+                      onChange={(value) => updateForm("featuresText", value)}
+                    />
+                    <AdminTextarea
+                      label="产品参数"
+                      helper="每行一个参数，例如 Power: 1200W"
+                      value={form.specsText}
+                      onChange={(value) => updateForm("specsText", value)}
+                    />
+                  </div>
+
+                  <AdminField label="主图 URL" value={form.cover_url} onChange={(value) => updateForm("cover_url", value)} />
+                  <div className="admin-upload-strip admin-tools-row">
+                    <FileButton label={uploading === "cover" ? "主图上传中..." : "上传主图"} accept="image/*" onFile={handleCoverUpload} />
+                    <FileButton label={uploading === "images" ? "详情图上传中..." : "上传详情图"} accept="image/*" multiple onFiles={handleDetailImages} />
+                    <FileButton label={uploading === "video" ? "视频上传中..." : "上传安装视频"} accept="video/mp4,video/*" onFile={handleVideoUpload} />
+                  </div>
+
+                  {form.cover_url ? (
+                    <div className="admin-preview">
+                      <img src={form.cover_url} alt="" />
+                      <div>
+                        <p>当前主图</p>
+                        <h4>{form.name || "未命名产品"}</h4>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <AdminField label="安装视频 URL" value={form.video_url} onChange={(value) => updateForm("video_url", value)} />
+                  {form.video_url ? <video className="video-player admin-video-preview" controls src={form.video_url} /> : null}
+
+                  <div className="admin-image-gallery">
+                    {images.map((image) => (
+                      <div key={image.id} className="admin-image-card">
+                        <img src={image.image_url} alt="" />
+                        <div className="admin-image-actions">
+                          <AdminField
+                            label="排序"
+                            type="number"
+                            value={image.sort_order}
+                            onChange={(value) => saveImageSort(image, value)}
+                          />
+                          <button className="text-btn" onClick={() => removeImage(image)}>
+                            删除
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="admin-tools-row">
+                    <button className="primary-btn" onClick={saveProduct}>
+                      保存产品
+                    </button>
                   </div>
                 </article>
               </div>
+            ) : (
+              <SettingsEditor settings={settings} onChange={updateSetting} onSave={saveSettings} />
             )}
           </div>
         </section>
@@ -834,32 +624,80 @@ function AdminApp() {
   );
 }
 
-function publicLabel(key, lang) {
-  const labels = {
-    zh: {
-      portable: "手提式洗车机",
-      trolley: "推车款洗车机",
-      waterGun: "水枪",
-      highPressureHose: "高压管",
-      steelWireHose: "钢丝管",
-    },
-    en: {
-      portable: "Portable Washers",
-      trolley: "Trolley Washers",
-      waterGun: "Water Guns",
-      highPressureHose: "High Pressure Hoses",
-      steelWireHose: "Steel Wire Hoses",
-    },
-  };
-
-  return labels[lang][key];
+function SettingsEditor({ settings, onChange, onSave }) {
+  return (
+    <div className="admin-card-grid">
+      <article className="card">
+        <h3>品牌信息</h3>
+        <AdminField label="中文名称" value={settings.branding.zhName} onChange={(value) => onChange("branding", "zhName", value)} />
+        <AdminField label="英文名称" value={settings.branding.enName} onChange={(value) => onChange("branding", "enName", value)} />
+        <AdminField label="中文副标题" value={settings.branding.zhSub} onChange={(value) => onChange("branding", "zhSub", value)} />
+        <AdminField label="英文副标题" value={settings.branding.enSub} onChange={(value) => onChange("branding", "enSub", value)} />
+      </article>
+      <article className="card">
+        <h3>首页信息</h3>
+        <AdminField label="Hero 标签" value={settings.home.heroTag} onChange={(value) => onChange("home", "heroTag", value)} />
+        <AdminField label="Hero 标题" value={settings.home.heroTitle} onChange={(value) => onChange("home", "heroTitle", value)} />
+        <AdminTextarea label="Hero 描述" value={settings.home.heroDesc} onChange={(value) => onChange("home", "heroDesc", value)} />
+      </article>
+      <article className="card">
+        <h3>公司介绍</h3>
+        <AdminField label="标题" value={settings.about.title} onChange={(value) => onChange("about", "title", value)} />
+        <AdminTextarea label="介绍正文" value={settings.about.body} onChange={(value) => onChange("about", "body", value)} />
+      </article>
+      <article className="card">
+        <h3>联系方式</h3>
+        <AdminField label="Email" value={settings.contact.email} onChange={(value) => onChange("contact", "email", value)} />
+        <AdminField label="Phone / WhatsApp" value={settings.contact.phone} onChange={(value) => onChange("contact", "phone", value)} />
+        <AdminField label="地址" value={settings.contact.address} onChange={(value) => onChange("contact", "address", value)} />
+        <AdminTextarea label="联系说明" value={settings.contact.description} onChange={(value) => onChange("contact", "description", value)} />
+      </article>
+      <div className="admin-tools-row">
+        <button className="primary-btn" onClick={onSave}>
+          保存公司信息
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function AdminField({ label, value, onChange, helper }) {
+function FileButton({ label, accept, multiple = false, onFile, onFiles }) {
+  return (
+    <label className="secondary-btn small-btn">
+      {label}
+      <input
+        className="hidden-input"
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          if (multiple) {
+            onFiles?.(files);
+          } else {
+            onFile?.(files[0]);
+          }
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+function AdminField({ label, value, onChange, helper, type = "text", onEnter }) {
   return (
     <label className="admin-field">
       <span>{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} />
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onEnter?.();
+          }
+        }}
+      />
       {helper ? <small>{helper}</small> : null}
     </label>
   );

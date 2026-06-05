@@ -1,6 +1,105 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import { publicUi, useSiteData } from "./siteData.js";
+import {
+  fetchProductById,
+  fetchProductByModel,
+  fetchProducts,
+  fetchSiteSettings,
+} from "./lib/siteApi.js";
+
+const CATEGORY_LABELS = {
+  portable: { zh: "手提式洗车机", en: "Portable Washers" },
+  trolley: { zh: "推车款洗车机", en: "Trolley Washers" },
+  "water-gun": { zh: "水枪", en: "Water Guns" },
+  "high-pressure-hose": { zh: "高压管", en: "High Pressure Hoses" },
+  "steel-wire-hose": { zh: "钢丝管", en: "Steel Wire Hoses" },
+};
+
+const DEFAULT_SETTINGS = {
+  branding: {
+    zhName: "上海恒猫机电",
+    enName: "Shanghai Hengmao Machinery",
+    zhSub: "洗车机与清洁配件供应商",
+    enSub: "Car Washer and Cleaning Accessories Supplier",
+  },
+  home: {
+    heroTag: "专业清洁设备供应商",
+    heroTitle: "洗车机与清洁配件解决方案",
+    heroDesc:
+      "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品，支持产品展示、型号搜索与安装视频管理。",
+  },
+  about: {
+    title: "公司介绍",
+    body: "上海恒猫机电专注于洗车机及清洁配件的展示与供应，主要产品包括手提式洗车机、推车款洗车机、水枪、高压管和钢丝管等。",
+  },
+  contact: {
+    email: "sales@hengmao.com",
+    phone: "+86-000-0000-0000",
+    address: "中国上海",
+    description: "欢迎联系上海恒猫机电获取产品资料和报价支持。",
+  },
+};
+
+const UI = {
+  zh: {
+    home: "首页",
+    about: "公司介绍",
+    products: "产品中心",
+    support: "帮助",
+    contact: "联系我们",
+    switchLabel: "EN",
+    all: "全部",
+    featured: "推荐产品",
+    productCenterTitle: "产品中心",
+    productCenterDesc: "所有产品数据来自 Supabase，后台修改后前台自动更新。",
+    detail: "查看详情",
+    backToProducts: "返回产品中心",
+    detailIntroTitle: "产品介绍",
+    detailFeatureTitle: "产品特点",
+    detailSpecTitle: "产品参数",
+    detailVideoTitle: "安装视频",
+    searchTitle: "型号搜索",
+    searchDesc: "输入产品型号，快速找到对应产品和安装视频。",
+    searchPlaceholder: "请输入产品型号，例如 HM-P1200",
+    searchResult: "搜索结果",
+    searchEmpty: "未找到对应产品",
+    watchVideo: "查看视频",
+    noProducts: "暂无产品",
+    loading: "正在读取产品...",
+    error: "读取 Supabase 数据失败，请检查环境变量、数据库表和 RLS 策略。",
+    activeProducts: "产品数量",
+    categoryCount: "产品分类",
+  },
+  en: {
+    home: "Home",
+    about: "About",
+    products: "Products",
+    support: "Support",
+    contact: "Contact",
+    switchLabel: "中文",
+    all: "All",
+    featured: "Featured",
+    productCenterTitle: "Product Center",
+    productCenterDesc: "Product data is loaded from Supabase and updates after admin changes.",
+    detail: "View Detail",
+    backToProducts: "Back to Products",
+    detailIntroTitle: "Description",
+    detailFeatureTitle: "Features",
+    detailSpecTitle: "Specifications",
+    detailVideoTitle: "Installation Video",
+    searchTitle: "Model Search",
+    searchDesc: "Search by model number to find product details and installation videos.",
+    searchPlaceholder: "Enter model, for example HM-P1200",
+    searchResult: "Results",
+    searchEmpty: "No matching product",
+    watchVideo: "Watch Video",
+    noProducts: "No products yet",
+    loading: "Loading products...",
+    error: "Failed to load Supabase data. Check environment variables, tables, and RLS policies.",
+    activeProducts: "Products",
+    categoryCount: "Categories",
+  },
+};
 
 function normalizeSearchValue(value) {
   return String(value || "")
@@ -10,56 +109,29 @@ function normalizeSearchValue(value) {
     .trim();
 }
 
-const RMB_TO_USD_RATE = 7.2;
-
-function getCategoryLabel(categoryKey, categoryMap, lang) {
-  const category = categoryMap.get(categoryKey);
-  return category ? category[lang] : categoryKey;
+function getCategoryLabel(category, lang) {
+  return CATEGORY_LABELS[category]?.[lang] || category || "-";
 }
 
-function parseRmbPrice(value) {
-  const numeric = Number.parseFloat(String(value || "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(numeric) ? numeric : 0;
+function productImages(product) {
+  const images = [product.cover_url, ...(product.images || [])].filter(Boolean);
+  return images.length ? [...new Set(images)] : [];
 }
 
-function formatDisplayPrice(value, lang) {
-  const rmb = parseRmbPrice(value);
-  if (lang === "zh") {
-    return `RMB ${rmb.toFixed(rmb % 1 === 0 ? 0 : 2)}`;
-  }
-
-  const usd = rmb / RMB_TO_USD_RATE;
-  return `USD ${usd.toFixed(usd >= 100 ? 0 : 2)}`;
-}
-
-function buildProductSearchIndex(product, categoryMap) {
-  const parts = [
-    product.model,
-    product.id,
-    product.type,
-    product.name?.zh,
-    product.name?.en,
-    product.short?.zh,
-    product.short?.en,
-    product.intro?.zh,
-    product.intro?.en,
-    getCategoryLabel(product.type, categoryMap, "zh"),
-    getCategoryLabel(product.type, categoryMap, "en"),
-  ];
-
-  if (Array.isArray(product.features?.zh)) {
-    parts.push(...product.features.zh);
-  }
-  if (Array.isArray(product.features?.en)) {
-    parts.push(...product.features.en);
-  }
-  if (Array.isArray(product.specs)) {
-    product.specs.forEach((spec) => {
-      parts.push(spec.label, spec.value);
-    });
-  }
-
-  return normalizeSearchValue(parts.join(" "));
+function buildProductSearchIndex(product) {
+  return normalizeSearchValue(
+    [
+      product.name,
+      product.model,
+      product.category,
+      getCategoryLabel(product.category, "zh"),
+      getCategoryLabel(product.category, "en"),
+      product.short_description,
+      product.description,
+      ...(product.features || []),
+      ...Object.entries(product.specs || {}).flat(),
+    ].join(" "),
+  );
 }
 
 function App() {
@@ -67,64 +139,90 @@ function App() {
   const [page, setPage] = useState("home");
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [storyIndex, setStoryIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [pendingVideoFocus, setPendingVideoFocus] = useState(false);
   const storyRefs = useRef([]);
   const detailVideoRef = useRef(null);
-  const [pendingVideoFocus, setPendingVideoFocus] = useState(false);
-  const [siteData] = useSiteData();
 
-  const text = publicUi[lang];
-  const selectedProduct =
-    siteData.products.find((product) => product.id === selectedProductId) || siteData.products[0];
-  const categoryMap = useMemo(
-    () => new Map((siteData.productCategories || []).map((item) => [item.key, item])),
-    [siteData.productCategories],
-  );
+  const text = UI[lang];
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadSite() {
+      try {
+        setLoading(true);
+        setError("");
+        const [nextProducts, nextSettings] = await Promise.all([
+          fetchProducts({ activeOnly: true }),
+          fetchSiteSettings(),
+        ]);
+        if (!alive) {
+          return;
+        }
+        setProducts(nextProducts);
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...nextSettings,
+          branding: { ...DEFAULT_SETTINGS.branding, ...(nextSettings.branding || {}) },
+          home: { ...DEFAULT_SETTINGS.home, ...(nextSettings.home || {}) },
+          about: { ...DEFAULT_SETTINGS.about, ...(nextSettings.about || {}) },
+          contact: { ...DEFAULT_SETTINGS.contact, ...(nextSettings.contact || {}) },
+        });
+      } catch (loadError) {
+        if (alive) {
+          setError(loadError?.message || text.error);
+        }
+      } finally {
+        if (alive) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSite();
+    return () => {
+      alive = false;
+    };
+  }, [text.error]);
 
   useEffect(() => {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
-    document.title = lang === "zh" ? siteData.branding.zhName : siteData.branding.enName;
-  }, [lang, siteData.branding.enName, siteData.branding.zhName]);
+    document.title = lang === "zh" ? settings.branding.zhName : settings.branding.enName;
+  }, [lang, settings.branding.enName, settings.branding.zhName]);
 
-  const categories = [
-    { key: "all", label: text.all },
-    ...(siteData.productCategories || []).map((item) => ({
-      key: item.key,
-      label: item[lang],
-    })),
-  ];
+  const categories = useMemo(() => {
+    const keys = [...new Set(products.map((product) => product.category).filter(Boolean))];
+    return [
+      { key: "all", label: text.all },
+      ...keys.map((key) => ({ key, label: getCategoryLabel(key, lang) })),
+    ];
+  }, [lang, products, text.all]);
 
   const filteredProducts = useMemo(() => {
     if (category === "all") {
-      return siteData.products;
+      return products;
     }
-    return siteData.products.filter((product) => product.type === category);
-  }, [category, siteData.products]);
+    return products.filter((product) => product.category === category);
+  }, [category, products]);
 
-  const storyProducts = siteData.products.slice(0, 3);
+  const storyProducts = products.slice(0, 3);
 
   const videoResults = useMemo(() => {
     const rawKeyword = query.trim();
     if (!rawKeyword) {
-      return siteData.products;
+      return products;
     }
 
     const keyword = normalizeSearchValue(rawKeyword);
-    const tokens = rawKeyword
-      .split(/\s+/)
-      .map((item) => normalizeSearchValue(item))
-      .filter(Boolean);
-
-    return siteData.products.filter((product) => {
-      const searchIndex = buildProductSearchIndex(product, categoryMap);
-      if (searchIndex.includes(keyword)) {
-        return true;
-      }
-      return tokens.every((token) => searchIndex.includes(token));
-    });
-  }, [categoryMap, query, siteData.products]);
+    return products.filter((product) => buildProductSearchIndex(product).includes(keyword));
+  }, [products, query]);
 
   useEffect(() => {
     if (!storyProducts.length) {
@@ -143,10 +241,7 @@ function App() {
           }
         });
       },
-      {
-        rootMargin: "-25% 0px -45% 0px",
-        threshold: 0.2,
-      },
+      { rootMargin: "-25% 0px -45% 0px", threshold: 0.2 },
     );
 
     storyRefs.current.forEach((node) => {
@@ -157,19 +252,6 @@ function App() {
 
     return () => observer.disconnect();
   }, [storyProducts.length]);
-
-  const navigate = (nextPage) => {
-    setPage(nextPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const openProduct = (product, options = {}) => {
-    setSelectedProductId(product.id);
-    setSelectedImage(0);
-    setPage("detail");
-    setPendingVideoFocus(Boolean(options.focusVideo));
-    window.scrollTo({ top: 0, behavior: options.focusVideo ? "auto" : "smooth" });
-  };
 
   useEffect(() => {
     if (page !== "detail" || !selectedProduct || !pendingVideoFocus) {
@@ -184,14 +266,56 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [page, pendingVideoFocus, selectedProduct]);
 
+  const navigate = (nextPage) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const openProduct = async (product, options = {}) => {
+    setSelectedProduct(product);
+    setSelectedImage(0);
+    setPage("detail");
+    setPendingVideoFocus(Boolean(options.focusVideo));
+    window.scrollTo({ top: 0, behavior: options.focusVideo ? "auto" : "smooth" });
+
+    try {
+      const hydrated = await fetchProductById(product.id);
+      if (hydrated) {
+        setSelectedProduct(hydrated);
+      }
+    } catch {
+      setSelectedProduct(product);
+    }
+  };
+
+  const searchExactModel = async () => {
+    if (!query.trim()) {
+      return;
+    }
+    try {
+      const found = await fetchProductByModel(query.trim());
+      if (found) {
+        openProduct(found, { focusVideo: true });
+      }
+    } catch {
+      // The live result list still gives the user a useful fallback.
+    }
+  };
+
+  const selectedImages = selectedProduct ? productImages(selectedProduct) : [];
+
   const nextImage = () => {
-    setSelectedImage((current) => (current + 1) % selectedProduct.images.length);
+    if (!selectedImages.length) {
+      return;
+    }
+    setSelectedImage((current) => (current + 1) % selectedImages.length);
   };
 
   const previousImage = () => {
-    setSelectedImage(
-      (current) => (current - 1 + selectedProduct.images.length) % selectedProduct.images.length,
-    );
+    if (!selectedImages.length) {
+      return;
+    }
+    setSelectedImage((current) => (current - 1 + selectedImages.length) % selectedImages.length);
   };
 
   return (
@@ -200,8 +324,8 @@ function App() {
         <button className="brand" onClick={() => navigate("home")}>
           <span className="brand-mark">HM</span>
           <span>
-            <strong>{lang === "zh" ? siteData.branding.zhName : siteData.branding.enName}</strong>
-            <small>{lang === "zh" ? siteData.branding.zhSub : siteData.branding.enSub}</small>
+            <strong>{lang === "zh" ? settings.branding.zhName : settings.branding.enName}</strong>
+            <small>{lang === "zh" ? settings.branding.zhSub : settings.branding.enSub}</small>
           </span>
         </button>
 
@@ -220,17 +344,16 @@ function App() {
         </div>
       </header>
 
-      {page === "home" && (
+      {error ? <div className="empty-state">{text.error}</div> : null}
+      {loading ? <div className="empty-state">{text.loading}</div> : null}
+
+      {page === "home" && !loading && (
         <main>
           <section className="hero">
             <div className="hero-copy">
-              <p className="eyebrow">
-                {lang === "zh" ? siteData.home.heroTag.zh : siteData.home.heroTag.en}
-              </p>
-              <h1>{lang === "zh" ? siteData.home.heroTitle.zh : siteData.home.heroTitle.en}</h1>
-              <p className="lead">
-                {lang === "zh" ? siteData.home.heroDesc.zh : siteData.home.heroDesc.en}
-              </p>
+              <p className="eyebrow">{settings.home.heroTag}</p>
+              <h1>{settings.home.heroTitle}</h1>
+              <p className="lead">{settings.home.heroDesc}</p>
               <div className="hero-actions">
                 <button className="primary-btn" onClick={() => navigate("products")}>
                   {text.products}
@@ -242,19 +365,19 @@ function App() {
             </div>
 
             <div className="hero-panel">
-              <img src={siteData.products[1]?.images[0] || siteData.products[0]?.images[0]} alt="" />
+              {products[0]?.cover_url ? <img src={products[0].cover_url} alt="" /> : <div className="empty-state">{text.noProducts}</div>}
               <div className="hero-stats">
                 <div>
-                  <strong>{siteData.products.length}</strong>
-                  <span>{lang === "zh" ? "产品数量" : "Products"}</span>
+                  <strong>{products.length}</strong>
+                  <span>{text.activeProducts}</span>
                 </div>
                 <div>
-                  <strong>{siteData.productCategories?.length || 0}</strong>
-                  <span>{lang === "zh" ? "产品分类" : "Categories"}</span>
+                  <strong>{Math.max(categories.length - 1, 0)}</strong>
+                  <span>{text.categoryCount}</span>
                 </div>
                 <button className="hero-stat-button" onClick={() => navigate("support")}>
                   <strong>Help</strong>
-                  <span>{lang === "zh" ? "型号搜索" : "Model Search"}</span>
+                  <span>{text.searchTitle}</span>
                 </button>
               </div>
             </div>
@@ -262,15 +385,15 @@ function App() {
 
           <section className="section">
             <div className="section-heading">
-              <p className="eyebrow">{lang === "zh" ? siteData.about.title.zh : siteData.about.title.en}</p>
-              <h2>{lang === "zh" ? siteData.branding.zhName : siteData.branding.enName}</h2>
-              <p>{lang === "zh" ? siteData.about.body.zh : siteData.about.body.en}</p>
+              <p className="eyebrow">{settings.about.title}</p>
+              <h2>{lang === "zh" ? settings.branding.zhName : settings.branding.enName}</h2>
+              <p>{settings.about.body}</p>
             </div>
             <div className="feature-grid">
-              {siteData.home.strengths.map((item) => (
-                <article key={item.zhTitle} className="card">
-                  <h3>{lang === "zh" ? item.zhTitle : item.enTitle}</h3>
-                  <p>{lang === "zh" ? item.zhText : item.enText}</p>
+              {Object.values(CATEGORY_LABELS).slice(0, 3).map((item) => (
+                <article key={item.zh} className="card">
+                  <h3>{lang === "zh" ? item.zh : item.en}</h3>
+                  <p>{text.productCenterDesc}</p>
                 </article>
               ))}
             </div>
@@ -280,68 +403,60 @@ function App() {
             <div className="section-heading">
               <p className="eyebrow">{text.featured}</p>
               <h2>{text.productCenterTitle}</h2>
-              <p>{text.featuredDesc}</p>
+              <p>{text.productCenterDesc}</p>
             </div>
-            <div className="story-shell">
-              <div className="story-stage card">
-                <div className="story-stage-copy">
-                  <small>{`0${storyIndex + 1}`}</small>
-                  <h3>{storyProducts[storyIndex]?.name[lang]}</h3>
-                  <p>{storyProducts[storyIndex]?.intro[lang]}</p>
-                  <div className="story-meta">
-                    <div>
-                      <strong>{storyProducts[storyIndex]?.model}</strong>
-                      <span>{lang === "zh" ? "产品型号" : "Model"}</span>
-                    </div>
-                    <div>
-                      <strong>{formatDisplayPrice(storyProducts[storyIndex]?.price, lang)}</strong>
-                      <span>{text.priceLabel}</span>
+            {storyProducts.length ? (
+              <div className="story-shell">
+                <div className="story-stage card">
+                  <div className="story-stage-copy">
+                    <small>{`0${storyIndex + 1}`}</small>
+                    <h3>{storyProducts[storyIndex]?.name}</h3>
+                    <p>{storyProducts[storyIndex]?.description || storyProducts[storyIndex]?.short_description}</p>
+                    <div className="story-meta">
+                      <div>
+                        <strong>{storyProducts[storyIndex]?.model}</strong>
+                        <span>Model</span>
+                      </div>
+                      <div>
+                        <strong>{getCategoryLabel(storyProducts[storyIndex]?.category, lang)}</strong>
+                        <span>{text.categoryCount}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="story-stage-photo">
+                    <img
+                      key={`${storyProducts[storyIndex]?.id}-${storyIndex}`}
+                      src={storyProducts[storyIndex]?.cover_url}
+                      alt={storyProducts[storyIndex]?.name}
+                    />
+                  </div>
                 </div>
-                <div className="story-stage-photo">
-                  <img
-                    key={`${storyProducts[storyIndex]?.id}-${storyIndex}`}
-                    src={storyProducts[storyIndex]?.images[0]}
-                    alt={storyProducts[storyIndex]?.name[lang]}
-                  />
+                <div className="story-scroll">
+                  {storyProducts.map((product, index) => (
+                    <article
+                      key={product.id}
+                      ref={(node) => {
+                        storyRefs.current[index] = node;
+                      }}
+                      data-story-index={index}
+                      className={storyIndex === index ? "story-card active" : "story-card"}
+                    >
+                      <div className="story-card-inner">
+                        <small>{`0${index + 1}`}</small>
+                        <h3>{product.name}</h3>
+                        <p>{product.short_description}</p>
+                      </div>
+                      <button className="text-btn" onClick={() => openProduct(product)}>
+                        {text.detail}
+                      </button>
+                    </article>
+                  ))}
                 </div>
               </div>
-              <div className="story-scroll">
-                {storyProducts.map((product, index) => (
-                  <article
-                    key={product.id}
-                    ref={(node) => {
-                      storyRefs.current[index] = node;
-                    }}
-                    data-story-index={index}
-                    className={storyIndex === index ? "story-card active" : "story-card"}
-                  >
-                    <div className="story-card-inner">
-                      <small>{`0${index + 1}`}</small>
-                      <h3>{product.name[lang]}</h3>
-                      <p>{product.short[lang]}</p>
-                    </div>
-                    <button className="text-btn" onClick={() => openProduct(product)}>
-                      {lang === "zh" ? "进入产品详情" : "Open Detail"}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </div>
-            <div className="product-grid">
-              {siteData.products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  lang={lang}
-                  product={product}
-                  detailLabel={text.detail}
-                  priceLabel={text.priceLabel}
-                  displayPrice={formatDisplayPrice(product.price, lang)}
-                  onOpen={openProduct}
-                />
-              ))}
-            </div>
+            ) : (
+              <div className="empty-state">{text.noProducts}</div>
+            )}
+            <ProductGrid products={products} lang={lang} text={text} onOpen={openProduct} />
           </section>
         </main>
       )}
@@ -350,16 +465,16 @@ function App() {
         <main className="page">
           <div className="section-heading compact">
             <p className="eyebrow">{text.about}</p>
-            <h1>{lang === "zh" ? siteData.about.title.zh : siteData.about.title.en}</h1>
+            <h1>{settings.about.title}</h1>
           </div>
           <section className="about-layout">
             <article className="card card-large">
-              <p>{lang === "zh" ? siteData.about.body.zh : siteData.about.body.en}</p>
+              <p>{settings.about.body}</p>
             </article>
             <div className="stack">
-              {siteData.about.points.map((point) => (
-                <article key={point.zh} className="card">
-                  <h3>{lang === "zh" ? point.zh : point.en}</h3>
+              {Object.values(CATEGORY_LABELS).map((item) => (
+                <article key={item.zh} className="card">
+                  <h3>{lang === "zh" ? item.zh : item.en}</h3>
                 </article>
               ))}
             </div>
@@ -387,19 +502,7 @@ function App() {
             ))}
           </div>
 
-          <div className="product-grid">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                lang={lang}
-                product={product}
-                detailLabel={text.detail}
-                priceLabel={text.priceLabel}
-                displayPrice={formatDisplayPrice(product.price, lang)}
-                onOpen={openProduct}
-              />
-            ))}
-          </div>
+          <ProductGrid products={filteredProducts} lang={lang} text={text} onOpen={openProduct} />
         </main>
       )}
 
@@ -412,17 +515,25 @@ function App() {
           <div className="detail-layout">
             <div className="gallery">
               <div className="gallery-main">
-                <img src={selectedProduct.images[selectedImage]} alt={selectedProduct.name[lang]} />
-                <button className="gallery-arrow left" onClick={previousImage}>
-                  {"<"}
-                </button>
-                <button className="gallery-arrow right" onClick={nextImage}>
-                  {">"}
-                </button>
+                {selectedImages[selectedImage] ? (
+                  <img src={selectedImages[selectedImage]} alt={selectedProduct.name} />
+                ) : (
+                  <div className="empty-state">{text.noProducts}</div>
+                )}
+                {selectedImages.length > 1 ? (
+                  <>
+                    <button className="gallery-arrow left" onClick={previousImage}>
+                      {"<"}
+                    </button>
+                    <button className="gallery-arrow right" onClick={nextImage}>
+                      {">"}
+                    </button>
+                  </>
+                ) : null}
               </div>
 
               <div className="thumb-row">
-                {selectedProduct.images.map((image, index) => (
+                {selectedImages.map((image, index) => (
                   <button
                     key={image}
                     className={selectedImage === index ? "thumb active" : "thumb"}
@@ -436,21 +547,21 @@ function App() {
 
             <div className="detail-copy">
               <p className="eyebrow">{selectedProduct.model}</p>
-              <h1>{selectedProduct.name[lang]}</h1>
+              <h1>{selectedProduct.name}</h1>
               <div className="price-chip">
-                <span>{text.priceLabel}</span>
-                <strong>{formatDisplayPrice(selectedProduct.price, lang)}</strong>
+                <span>{text.categoryCount}</span>
+                <strong>{getCategoryLabel(selectedProduct.category, lang)}</strong>
               </div>
 
               <section className="detail-block">
                 <h3>{text.detailIntroTitle}</h3>
-                <p>{selectedProduct.intro[lang]}</p>
+                <p>{selectedProduct.description || selectedProduct.short_description}</p>
               </section>
 
               <section className="detail-block">
                 <h3>{text.detailFeatureTitle}</h3>
                 <ul className="feature-list">
-                  {selectedProduct.features[lang].map((feature) => (
+                  {(selectedProduct.features || []).map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
@@ -459,10 +570,10 @@ function App() {
               <section className="detail-block">
                 <h3>{text.detailSpecTitle}</h3>
                 <div className="spec-table">
-                  {selectedProduct.specs.map((spec) => (
-                    <div key={`${spec.label}-${spec.value}`} className="spec-row">
-                      <span>{spec.label}</span>
-                      <strong>{spec.value}</strong>
+                  {Object.entries(selectedProduct.specs || {}).map(([label, value]) => (
+                    <div key={`${label}-${value}`} className="spec-row">
+                      <span>{label}</span>
+                      <strong>{String(value)}</strong>
                     </div>
                   ))}
                 </div>
@@ -470,17 +581,17 @@ function App() {
             </div>
           </div>
 
-          <section ref={detailVideoRef} className="section detail-video-section">
-            <div className="section-heading compact">
-              <p className="eyebrow">{selectedProduct.model}</p>
-              <h2>{text.detailVideoTitle}</h2>
-            </div>
-            <video controls className="video-player" src={selectedProduct.video}>
-              {lang === "zh"
-                ? "您的浏览器不支持视频播放。"
-                : "Your browser does not support video playback."}
-            </video>
-          </section>
+          {selectedProduct.video_url ? (
+            <section ref={detailVideoRef} className="section detail-video-section">
+              <div className="section-heading compact">
+                <p className="eyebrow">{selectedProduct.model}</p>
+                <h2>{text.detailVideoTitle}</h2>
+              </div>
+              <video controls className="video-player" src={selectedProduct.video_url}>
+                Your browser does not support video playback.
+              </video>
+            </section>
+          ) : null}
         </main>
       )}
 
@@ -497,6 +608,11 @@ function App() {
               className="search-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  searchExactModel();
+                }
+              }}
               placeholder={text.searchPlaceholder}
             />
           </div>
@@ -511,11 +627,11 @@ function App() {
                     className="result-card result-card-clickable"
                     onClick={() => openProduct(product, { focusVideo: true })}
                   >
-                    <img src={product.images[0]} alt={product.name[lang]} />
+                    {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
                     <div className="result-copy">
                       <p>{product.model}</p>
-                      <h3>{product.name[lang]}</h3>
-                      <span>{product.short[lang]}</span>
+                      <h3>{product.name}</h3>
+                      <span>{product.short_description}</span>
                     </div>
                     <button
                       className="primary-btn"
@@ -540,21 +656,21 @@ function App() {
         <main className="page">
           <div className="section-heading compact">
             <p className="eyebrow">{text.contact}</p>
-            <h1>{text.contactTitle}</h1>
-            <p>{lang === "zh" ? siteData.contact.descZh : siteData.contact.descEn}</p>
+            <h1>{lang === "zh" ? "联系我们" : "Contact Us"}</h1>
+            <p>{settings.contact.description}</p>
           </div>
           <section className="contact-grid">
             <article className="card">
-              <h3>{lang === "zh" ? "邮箱" : "Email"}</h3>
-              <p>{siteData.contact.email}</p>
+              <h3>Email</h3>
+              <p>{settings.contact.email}</p>
             </article>
             <article className="card">
-              <h3>{lang === "zh" ? "电话 / WhatsApp" : "Phone / WhatsApp"}</h3>
-              <p>{siteData.contact.phone}</p>
+              <h3>Phone / WhatsApp</h3>
+              <p>{settings.contact.phone}</p>
             </article>
             <article className="card">
               <h3>{lang === "zh" ? "地址" : "Address"}</h3>
-              <p>{lang === "zh" ? siteData.contact.addressZh : siteData.contact.addressEn}</p>
+              <p>{settings.contact.address}</p>
             </article>
           </section>
         </main>
@@ -563,22 +679,22 @@ function App() {
       <footer className="footer footer-rich">
         <div className="footer-grid">
           <div>
-            <p className="eyebrow">{lang === "zh" ? "联系我们" : "Contact"}</p>
-            <h3>{lang === "zh" ? siteData.branding.zhName : siteData.branding.enName}</h3>
-            <p>{lang === "zh" ? siteData.contact.descZh : siteData.contact.descEn}</p>
+            <p className="eyebrow">{text.contact}</p>
+            <h3>{lang === "zh" ? settings.branding.zhName : settings.branding.enName}</h3>
+            <p>{settings.contact.description}</p>
           </div>
           <div className="footer-contact-list">
             <div>
-              <strong>{lang === "zh" ? "邮箱" : "Email"}</strong>
-              <span>{siteData.contact.email}</span>
+              <strong>Email</strong>
+              <span>{settings.contact.email}</span>
             </div>
             <div>
-              <strong>{lang === "zh" ? "电话 / WhatsApp" : "Phone / WhatsApp"}</strong>
-              <span>{siteData.contact.phone}</span>
+              <strong>Phone / WhatsApp</strong>
+              <span>{settings.contact.phone}</span>
             </div>
             <div>
               <strong>{lang === "zh" ? "地址" : "Address"}</strong>
-              <span>{lang === "zh" ? siteData.contact.addressZh : siteData.contact.addressEn}</span>
+              <span>{settings.contact.address}</span>
             </div>
           </div>
         </div>
@@ -587,20 +703,34 @@ function App() {
   );
 }
 
-function ProductCard({ lang, product, detailLabel, priceLabel, displayPrice, onOpen }) {
+function ProductGrid({ products, lang, text, onOpen }) {
+  if (!products.length) {
+    return <div className="empty-state">{text.noProducts}</div>;
+  }
+
+  return (
+    <div className="product-grid">
+      {products.map((product) => (
+        <ProductCard key={product.id} lang={lang} product={product} detailLabel={text.detail} onOpen={onOpen} />
+      ))}
+    </div>
+  );
+}
+
+function ProductCard({ lang, product, detailLabel, onOpen }) {
   return (
     <article className="product-card">
       <button className="product-image" onClick={() => onOpen(product)}>
-        <img src={product.images[0]} alt={product.name[lang]} />
+        {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
       </button>
       <div className="product-copy">
         <p>{product.model}</p>
-        <h3>{product.name[lang]}</h3>
-        <span>{product.short[lang]}</span>
+        <h3>{product.name}</h3>
+        <span>{product.short_description}</span>
         <div className="product-card-footer">
           <div className="mini-price">
-            <small>{priceLabel}</small>
-            <strong>{displayPrice}</strong>
+            <small>{lang === "zh" ? "分类" : "Category"}</small>
+            <strong>{getCategoryLabel(product.category, lang)}</strong>
           </div>
           <button className="text-btn" onClick={() => onOpen(product)}>
             {detailLabel}
