@@ -43,8 +43,15 @@ const DEFAULT_SETTINGS = {
   },
   home: {
     heroTag: "专业清洁设备供应商",
+    heroTagZh: "专业清洁设备供应商",
+    heroTagEn: "Professional Cleaning Equipment Supplier",
     heroTitle: "洗车机与清洁配件解决方案",
+    heroTitleZh: "洗车机与清洁配件解决方案",
+    heroTitleEn: "Car Washer and Cleaning Accessory Solutions",
     heroDesc: "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品。",
+    heroDescZh: "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品。",
+    heroDescEn:
+      "Shanghai Hengmao Machinery supplies portable car washers, trolley pressure washers, spray guns, high pressure hoses, and steel wire hoses.",
   },
   about: {
     title: "公司介绍",
@@ -66,11 +73,11 @@ const DEFAULT_SETTINGS = {
 };
 
 const CATEGORY_OPTIONS = [
-  { value: "portable", label: "手提式洗车机" },
-  { value: "trolley", label: "推车款洗车机" },
-  { value: "water-gun", label: "水枪" },
-  { value: "high-pressure-hose", label: "高压管" },
-  { value: "steel-wire-hose", label: "钢丝管" },
+  { value: "portable", labelZh: "手提式洗车机", labelEn: "Portable Car Washer" },
+  { value: "trolley", labelZh: "推车款洗车机", labelEn: "Trolley Pressure Washer" },
+  { value: "water-gun", labelZh: "水枪", labelEn: "Spray Gun" },
+  { value: "high-pressure-hose", labelZh: "高压管", labelEn: "High Pressure Hose" },
+  { value: "steel-wire-hose", labelZh: "钢丝管", labelEn: "Steel Wire Hose" },
 ];
 
 const NAV_ITEMS = [
@@ -143,8 +150,12 @@ function formToPayload(form) {
   };
 }
 
-function categoryLabel(value) {
-  return CATEGORY_OPTIONS.find((item) => item.value === value)?.label || value || "-";
+function categoryLabel(value, lang = "zh") {
+  const category = CATEGORY_OPTIONS.find((item) => item.value === value);
+  if (!category) {
+    return value || "-";
+  }
+  return lang === "en" ? category.labelEn : category.labelZh;
 }
 
 function byNewestUpdate(a, b) {
@@ -748,7 +759,7 @@ function ProductsPanel(props) {
           />
           <select value={filters.category} onChange={(event) => onFilter("category", event.target.value)}>
             <option value="all">全部分类</option>
-            {CATEGORY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            {CATEGORY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.labelZh}</option>)}
           </select>
           <select value={filters.status} onChange={(event) => onFilter("status", event.target.value)}>
             <option value="all">全部状态</option>
@@ -972,9 +983,12 @@ function SettingsPanel({ settings, onChange, onSave }) {
       </article>
       <article className="card">
         <h3>首页 Hero</h3>
-        <AdminField label="首页 Hero 标签" value={settings.home.heroTag} onChange={(value) => onChange("home", "heroTag", value)} />
-        <AdminField label="首页 Hero 标题" value={settings.home.heroTitle} onChange={(value) => onChange("home", "heroTitle", value)} />
-        <AdminTextarea label="首页 Hero 描述" value={settings.home.heroDesc} onChange={(value) => onChange("home", "heroDesc", value)} />
+        <AdminField label="中文 Hero 标签" value={settings.home.heroTagZh || settings.home.heroTag || ""} onChange={(value) => onChange("home", "heroTagZh", value)} />
+        <AdminField label="英文 Hero 标签" value={settings.home.heroTagEn || settings.home.heroTag || ""} onChange={(value) => onChange("home", "heroTagEn", value)} />
+        <AdminField label="中文 Hero 标题" value={settings.home.heroTitleZh || settings.home.heroTitle || ""} onChange={(value) => onChange("home", "heroTitleZh", value)} />
+        <AdminField label="英文 Hero 标题" value={settings.home.heroTitleEn || settings.home.heroTitle || ""} onChange={(value) => onChange("home", "heroTitleEn", value)} />
+        <AdminTextarea label="中文 Hero 描述" value={settings.home.heroDescZh || settings.home.heroDesc || ""} onChange={(value) => onChange("home", "heroDescZh", value)} />
+        <AdminTextarea label="英文 Hero 描述" value={settings.home.heroDescEn || settings.home.heroDesc || ""} onChange={(value) => onChange("home", "heroDescEn", value)} />
       </article>
       <article className="card">
         <h3>公司介绍</h3>
@@ -1095,7 +1109,7 @@ function AdminSelect({ label, value, options, onChange }) {
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {option.labelZh || option.label}
           </option>
         ))}
       </select>

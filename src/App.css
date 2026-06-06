@@ -290,8 +290,10 @@ img {
 
 .hero-panel img {
   height: 380px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 24px;
+  padding: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
 }
 
 .hero-stats {
@@ -511,8 +513,10 @@ img {
 
 .story-stage-photo img {
   height: 460px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 26px;
+  padding: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
   transform: perspective(1200px) rotateY(-14deg) rotateX(2deg);
   transform-origin: center;
   box-shadow:
@@ -661,15 +665,17 @@ img {
 
 .product-image {
   width: 100%;
-  padding: 0;
+  padding: 14px;
   overflow: hidden;
   border-radius: 22px;
-  background: transparent;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
 }
 
 .product-image img {
   height: 270px;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.3s ease;
 }
 
@@ -712,7 +718,11 @@ img {
 
 .gallery-main img {
   height: 520px;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.08), transparent 44%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
 }
 
 .gallery-arrow {
@@ -750,7 +760,9 @@ img {
 
 .thumb img {
   height: 110px;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .detail-copy {
@@ -830,8 +842,12 @@ img {
 
 .result-card img {
   height: 150px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 20px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.08), transparent 42%),
+    rgba(255, 255, 255, 0.03);
 }
 
 .empty-state {

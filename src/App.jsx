@@ -8,11 +8,11 @@ import {
 } from "./lib/siteApi.js";
 
 const CATEGORY_LABELS = {
-  portable: { zh: "手提式洗车机", en: "Portable Washers" },
-  trolley: { zh: "推车款洗车机", en: "Trolley Washers" },
-  "water-gun": { zh: "水枪", en: "Water Guns" },
-  "high-pressure-hose": { zh: "高压管", en: "High Pressure Hoses" },
-  "steel-wire-hose": { zh: "钢丝管", en: "Steel Wire Hoses" },
+  portable: { zh: "手提式洗车机", en: "Portable Car Washer" },
+  trolley: { zh: "推车款洗车机", en: "Trolley Pressure Washer" },
+  "water-gun": { zh: "水枪", en: "Spray Gun" },
+  "high-pressure-hose": { zh: "高压管", en: "High Pressure Hose" },
+  "steel-wire-hose": { zh: "钢丝管", en: "Steel Wire Hose" },
 };
 
 const DEFAULT_SETTINGS = {
@@ -24,9 +24,17 @@ const DEFAULT_SETTINGS = {
   },
   home: {
     heroTag: "专业清洁设备供应商",
+    heroTagZh: "专业清洁设备供应商",
+    heroTagEn: "Professional Cleaning Equipment Supplier",
     heroTitle: "洗车机与清洁配件解决方案",
+    heroTitleZh: "洗车机与清洁配件解决方案",
+    heroTitleEn: "Car Washer and Cleaning Accessory Solutions",
     heroDesc:
       "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品，支持产品展示、型号搜索与安装视频管理。",
+    heroDescZh:
+      "上海恒猫机电主营手提式洗车机、推车款洗车机、水枪、高压管、钢丝管等产品，支持产品展示、型号搜索与安装视频管理。",
+    heroDescEn:
+      "Shanghai Hengmao Machinery supplies portable car washers, trolley pressure washers, spray guns, high pressure hoses, and steel wire hoses with product display, model search, and installation video management.",
   },
   about: {
     title: "公司介绍",
@@ -119,6 +127,11 @@ function normalizeSearchValue(value) {
 
 function getCategoryLabel(category, lang) {
   return CATEGORY_LABELS[category]?.[lang] || category || "-";
+}
+
+function getLocalizedHome(home, field, lang) {
+  const suffix = lang === "en" ? "En" : "Zh";
+  return home?.[`${field}${suffix}`] || home?.[field] || "";
 }
 
 function productImages(product) {
@@ -224,6 +237,7 @@ function App() {
   }, [category, products]);
 
   const storyProducts = products.slice(0, 3);
+  const storyProductKeys = storyProducts.map((product) => product.id).join("|");
 
   const videoResults = useMemo(() => {
     const rawKeyword = query.trim();
@@ -239,6 +253,7 @@ function App() {
     if (!storyProducts.length) {
       return undefined;
     }
+    setStoryIndex((current) => Math.min(current, storyProducts.length - 1));
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -262,7 +277,7 @@ function App() {
     });
 
     return () => observer.disconnect();
-  }, [storyProducts.length]);
+  }, [lang, storyProducts.length, storyProductKeys]);
 
   useEffect(() => {
     if (page !== "detail" || !selectedProduct || !pendingVideoFocus) {
@@ -362,9 +377,9 @@ function App() {
         <main>
           <section className="hero">
             <div className="hero-copy">
-              <p className="eyebrow">{settings.home.heroTag}</p>
-              <h1>{settings.home.heroTitle}</h1>
-              <p className="lead">{settings.home.heroDesc}</p>
+              <p className="eyebrow">{getLocalizedHome(settings.home, "heroTag", lang)}</p>
+              <h1>{getLocalizedHome(settings.home, "heroTitle", lang)}</h1>
+              <p className="lead">{getLocalizedHome(settings.home, "heroDesc", lang)}</p>
               <div className="hero-actions">
                 <button className="primary-btn" onClick={() => navigate("products")}>
                   {text.products}
@@ -643,6 +658,7 @@ function App() {
                       <p>{product.model}</p>
                       <h3>{product.name}</h3>
                       <span>{product.short_description}</span>
+                      <p>{getCategoryLabel(product.category, lang)}</p>
                     </div>
                     <button
                       className="primary-btn"
