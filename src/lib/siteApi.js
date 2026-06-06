@@ -85,6 +85,19 @@ export async function fetchProductImages(productId) {
   return data || [];
 }
 
+export async function fetchAllProductImages() {
+  requireSupabase();
+  const { data, error } = await supabase
+    .from("product_images")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+  return data || [];
+}
+
 export async function fetchProductById(id) {
   requireSupabase();
   const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();

@@ -40,6 +40,14 @@ const DEFAULT_SETTINGS = {
   },
 };
 
+const DEFAULT_SUPPORT_SETTINGS = {
+  support: {
+    searchDesc: "输入产品型号，快速找到对应产品和安装视频。",
+    videoCta: "查看安装视频",
+  },
+  faq: [],
+};
+
 const UI = {
   zh: {
     home: "首页",
@@ -169,11 +177,14 @@ function App() {
         setProducts(nextProducts);
         setSettings({
           ...DEFAULT_SETTINGS,
+          ...DEFAULT_SUPPORT_SETTINGS,
           ...nextSettings,
           branding: { ...DEFAULT_SETTINGS.branding, ...(nextSettings.branding || {}) },
           home: { ...DEFAULT_SETTINGS.home, ...(nextSettings.home || {}) },
           about: { ...DEFAULT_SETTINGS.about, ...(nextSettings.about || {}) },
           contact: { ...DEFAULT_SETTINGS.contact, ...(nextSettings.contact || {}) },
+          support: { ...DEFAULT_SUPPORT_SETTINGS.support, ...(nextSettings.support || {}) },
+          faq: Array.isArray(nextSettings.faq) ? nextSettings.faq : DEFAULT_SUPPORT_SETTINGS.faq,
         });
       } catch (loadError) {
         if (alive) {
@@ -600,7 +611,7 @@ function App() {
           <div className="section-heading compact">
             <p className="eyebrow">{text.support}</p>
             <h1>{text.searchTitle}</h1>
-            <p>{text.searchDesc}</p>
+            <p>{settings.support?.searchDesc || text.searchDesc}</p>
           </div>
 
           <div className="search-panel">
@@ -640,7 +651,7 @@ function App() {
                         openProduct(product, { focusVideo: true });
                       }}
                     >
-                      {text.watchVideo}
+                      {settings.support?.videoCta || text.watchVideo}
                     </button>
                   </article>
                 ))}
@@ -649,6 +660,22 @@ function App() {
               <div className="empty-state">{text.searchEmpty}</div>
             )}
           </section>
+          {settings.faq?.length ? (
+            <section className="section">
+              <div className="section-heading compact">
+                <p className="eyebrow">FAQ</p>
+                <h2>常见问题</h2>
+              </div>
+              <div className="feature-grid">
+                {settings.faq.map((item, index) => (
+                  <article className="card" key={`${item.question}-${index}`}>
+                    <h3>{item.question}</h3>
+                    <p>{item.answer}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </main>
       )}
 
