@@ -164,11 +164,9 @@ function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [storyIndex, setStoryIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingVideoFocus, setPendingVideoFocus] = useState(false);
-  const storyRefs = useRef([]);
   const detailVideoRef = useRef(null);
 
   const text = UI[lang];
@@ -237,7 +235,6 @@ function App() {
   }, [category, products]);
 
   const storyProducts = products.slice(0, 3);
-  const storyProductKeys = storyProducts.map((product) => product.id).join("|");
 
   const videoResults = useMemo(() => {
     const rawKeyword = query.trim();
@@ -248,36 +245,6 @@ function App() {
     const keyword = normalizeSearchValue(rawKeyword);
     return products.filter((product) => buildProductSearchIndex(product).includes(keyword));
   }, [products, query]);
-
-  useEffect(() => {
-    if (!storyProducts.length) {
-      return undefined;
-    }
-    setStoryIndex((current) => Math.min(current, storyProducts.length - 1));
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
-          const nextIndex = Number(entry.target.getAttribute("data-story-index"));
-          if (!Number.isNaN(nextIndex)) {
-            setStoryIndex(nextIndex);
-          }
-        });
-      },
-      { rootMargin: "-25% 0px -45% 0px", threshold: 0.2 },
-    );
-
-    storyRefs.current.forEach((node) => {
-      if (node) {
-        observer.observe(node);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, [lang, storyProducts.length, storyProductKeys]);
 
   useEffect(() => {
     if (page !== "detail" || !selectedProduct || !pendingVideoFocus) {
@@ -432,53 +399,7 @@ function App() {
               <p>{text.productCenterDesc}</p>
             </div>
             {storyProducts.length ? (
-              <div className="story-shell">
-                <div className="story-stage card">
-                  <div className="story-stage-copy">
-                    <small>{`0${storyIndex + 1}`}</small>
-                    <h3>{storyProducts[storyIndex]?.name}</h3>
-                    <p>{storyProducts[storyIndex]?.description || storyProducts[storyIndex]?.short_description}</p>
-                    <div className="story-meta">
-                      <div>
-                        <strong>{storyProducts[storyIndex]?.model}</strong>
-                        <span>Model</span>
-                      </div>
-                      <div>
-                        <strong>{getCategoryLabel(storyProducts[storyIndex]?.category, lang)}</strong>
-                        <span>{text.categoryCount}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="story-stage-photo">
-                    <img
-                      key={`${storyProducts[storyIndex]?.id}-${storyIndex}`}
-                      src={storyProducts[storyIndex]?.cover_url}
-                      alt={storyProducts[storyIndex]?.name}
-                    />
-                  </div>
-                </div>
-                <div className="story-scroll">
-                  {storyProducts.map((product, index) => (
-                    <article
-                      key={product.id}
-                      ref={(node) => {
-                        storyRefs.current[index] = node;
-                      }}
-                      data-story-index={index}
-                      className={storyIndex === index ? "story-card active" : "story-card"}
-                    >
-                      <div className="story-card-inner">
-                        <small>{`0${index + 1}`}</small>
-                        <h3>{product.name}</h3>
-                        <p>{product.short_description}</p>
-                      </div>
-                      <button className="text-btn" onClick={() => openProduct(product)}>
-                        {text.detail}
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              </div>
+              <ProductShowcase products={storyProducts} lang={lang} text={text} onOpen={openProduct} />
             ) : (
               <div className="empty-state">{text.noProducts}</div>
             )}
@@ -756,6 +677,129 @@ function ProductGrid({ products, lang, text, onOpen }) {
       {products.map((product) => (
         <ProductCard key={product.id} lang={lang} product={product} detailLabel={text.detail} onOpen={onOpen} />
       ))}
+    </div>
+  );
+}
+
+function ProductShowcase({ products, lang, text, onOpen }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const cardRefs = useRef([]);
+  const productKeys = products.map((product) => product.id || product.model).join("|");
+  const activeProduct = products[Math.min(activeIndex, products.length - 1)] || products[0];
+
+  useEffect(() => {
+    if (!products.length) {
+      setActiveIndex(0);
+      return undefined;
+    }
+
+    let frameId = 0;
+    cardRefs.current = cardRefs.current.slice(0, products.length);
+
+    const calculateActiveIndex = () => {
+      const cards = cardRefs.current.filter(Boolean);
+      if (!cards.length) {
+        return;
+      }
+
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const targetY = viewportHeight * 0.48;
+      let nextIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      cards.forEach((card, index) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - targetY);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          nextIndex = index;
+        }
+      });
+
+      nextIndex = Math.min(products.length - 1, Math.max(0, nextIndex));
+      setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
+    };
+
+    const handleScroll = () => {
+      if (frameId) {
+        return;
+      }
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        calculateActiveIndex();
+      });
+    };
+
+    setActiveIndex((current) => Math.min(current, products.length - 1));
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    frameId = window.requestAnimationFrame(() => {
+      frameId = 0;
+      calculateActiveIndex();
+      window.requestAnimationFrame(calculateActiveIndex);
+    });
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [lang, products.length, productKeys]);
+
+  if (!activeProduct) {
+    return null;
+  }
+
+  return (
+    <div className="story-shell">
+      <div className="story-stage card">
+        <div className="story-stage-copy">
+          <small>{`0${activeIndex + 1}`}</small>
+          <h3>{activeProduct.name}</h3>
+          <p>{activeProduct.description || activeProduct.short_description}</p>
+          <div className="story-meta">
+            <div>
+              <strong>{activeProduct.model}</strong>
+              <span>Model</span>
+            </div>
+            <div>
+              <strong>{getCategoryLabel(activeProduct.category, lang)}</strong>
+              <span>{text.categoryCount}</span>
+            </div>
+          </div>
+        </div>
+        <div className="story-stage-photo">
+          <img
+            key={`${activeProduct.id || activeProduct.model}-${activeIndex}`}
+            src={activeProduct.cover_url}
+            alt={activeProduct.name}
+          />
+        </div>
+      </div>
+      <div className="story-scroll">
+        {products.map((product, index) => (
+          <article
+            key={product.id || product.model}
+            ref={(node) => {
+              cardRefs.current[index] = node;
+            }}
+            data-product-id={product.id || product.model}
+            className={activeIndex === index ? "story-card active" : "story-card"}
+          >
+            <div className="story-card-inner">
+              <small>{`0${index + 1}`}</small>
+              <h3>{product.name}</h3>
+              <p>{product.short_description}</p>
+            </div>
+            <button className="text-btn" onClick={() => onOpen(product)}>
+              {text.detail}
+            </button>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
