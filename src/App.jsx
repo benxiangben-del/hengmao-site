@@ -158,6 +158,7 @@ function buildProductSearchIndex(product) {
 function App() {
   const [lang, setLang] = useState("zh");
   const [page, setPage] = useState("home");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState([]);
@@ -260,6 +261,7 @@ function App() {
   }, [page, pendingVideoFocus, selectedProduct]);
 
   const navigate = (nextPage) => {
+    setIsMobileMenuOpen(false);
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -323,7 +325,18 @@ function App() {
         </button>
 
         <div className="topbar-right">
-          <nav className="nav">
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setIsMobileMenuOpen((current) => !current)}
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <nav className={isMobileMenuOpen ? "nav open" : "nav"}>
             <button onClick={() => navigate("home")}>{text.home}</button>
             <button onClick={() => navigate("about")}>{text.about}</button>
             <button onClick={() => navigate("products")}>{text.products}</button>
@@ -331,7 +344,13 @@ function App() {
             <button onClick={() => navigate("contact")}>{text.contact}</button>
           </nav>
 
-          <button className="lang-switch" onClick={() => setLang(lang === "zh" ? "en" : "zh")}>
+          <button
+            className="lang-switch"
+            onClick={() => {
+              setLang(lang === "zh" ? "en" : "zh");
+              setIsMobileMenuOpen(false);
+            }}
+          >
             {text.switchLabel}
           </button>
         </div>
@@ -789,6 +808,13 @@ function ProductShowcase({ products, lang, text, onOpen }) {
             data-product-id={product.id || product.model}
             className={activeIndex === index ? "story-card active" : "story-card"}
           >
+            <div className="story-card-mobile-media">
+              {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
+              <div>
+                <p>{product.model}</p>
+                <strong>{getCategoryLabel(product.category, lang)}</strong>
+              </div>
+            </div>
             <div className="story-card-inner">
               <small>{`0${index + 1}`}</small>
               <h3>{product.name}</h3>
