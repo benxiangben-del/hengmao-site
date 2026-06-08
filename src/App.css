@@ -466,20 +466,38 @@ img {
   flex-wrap: wrap;
 }
 
+.product-showcase-section {
+  position: relative;
+  overflow: visible;
+}
+
+.product-showcase-layout,
 .story-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 24px;
-  align-items: start;
+  gap: 32px;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.product-sticky-column {
+  position: sticky;
+  top: 96px;
+  align-self: flex-start;
+  height: fit-content;
+  overflow: visible;
+}
+
+.product-sticky-card {
+  min-height: calc(100vh - 140px);
+  max-height: calc(100vh - 120px);
 }
 
 .story-stage {
-  position: sticky;
-  top: 108px;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(260px, 1fr);
   gap: 20px;
-  min-height: 540px;
   overflow: hidden;
 }
 
@@ -564,6 +582,11 @@ img {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.story-stage-action {
+  width: fit-content;
+  margin-top: 22px;
+}
+
 .story-meta strong {
   display: block;
   margin-bottom: 6px;
@@ -575,16 +598,18 @@ img {
   font-size: 13px;
 }
 
+.product-scroll-column,
 .story-scroll {
   display: grid;
-  gap: 18px;
+  gap: 28px;
 }
 
+.product-scroll-card,
 .story-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 68vh;
+  min-height: 72vh;
   padding: 22px;
   border-radius: 24px;
   border: 1px solid var(--line);
@@ -1720,22 +1745,40 @@ img {
     white-space: nowrap;
   }
 
+  .product-showcase-section,
   .story-shell {
-    display: grid;
-    grid-template-columns: 1fr;
     min-height: auto !important;
   }
 
-  .story-stage {
+  .product-showcase-layout,
+  .story-shell {
+    display: block;
+    grid-template-columns: 1fr;
+  }
+
+  .product-sticky-column {
     display: none;
     position: static;
+    top: auto;
+    height: auto;
+  }
+
+  .product-sticky-card,
+  .story-stage {
     min-height: auto;
+    max-height: none;
+  }
+
+  .product-scroll-column {
+    display: grid;
+    gap: 14px;
   }
 
   .story-scroll {
     gap: 14px;
   }
 
+  .product-scroll-card,
   .story-card {
     min-height: auto;
     padding: 16px;

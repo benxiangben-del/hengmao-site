@@ -703,6 +703,7 @@ function ProductGrid({ products, lang, text, onOpen }) {
 function ProductShowcase({ products, lang, text, onOpen }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const sectionRef = useRef(null);
+  const cardRefs = useRef([]);
   const productKeys = products.map((product) => product.id || product.model).join("|");
   const activeProduct = products[Math.min(activeIndex, products.length - 1)] || products[0];
 
@@ -712,31 +713,41 @@ function ProductShowcase({ products, lang, text, onOpen }) {
       return undefined;
     }
 
+    let observer;
     let frameId = 0;
+    cardRefs.current = cardRefs.current.slice(0, products.length);
 
     const calculateActiveIndex = () => {
       if (window.matchMedia("(max-width: 768px)").matches) {
         return;
       }
 
-      const section = sectionRef.current;
-      if (!section) {
+      const cards = cardRefs.current.filter(Boolean);
+      if (!cards.length) {
         return;
       }
 
-      const rect = section.getBoundingClientRect();
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-      const scrollRange = Math.max(rect.height - viewportHeight, 1);
-      const progress = Math.min(1, Math.max(0, -rect.top / scrollRange));
-      const nextIndex = Math.min(
-        products.length - 1,
-        Math.max(0, Math.floor(progress * products.length)),
-      );
+      const targetY = viewportHeight * 0.42;
+      let nextIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      cards.forEach((card, index) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - targetY);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          nextIndex = index;
+        }
+      });
+
+      nextIndex = Math.min(products.length - 1, Math.max(0, nextIndex));
 
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
     };
 
-    const handleScroll = () => {
+    const scheduleCalculate = () => {
       if (frameId) {
         return;
       }
@@ -747,8 +758,33 @@ function ProductShowcase({ products, lang, text, onOpen }) {
     };
 
     setActiveIndex((current) => Math.min(current, products.length - 1));
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+          const nextIndex = Number(entry.target.getAttribute("data-index"));
+          if (!Number.isNaN(nextIndex)) {
+            setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
+          }
+        });
+      },
+      {
+        root: null,
+        threshold: 0.45,
+        rootMargin: "-30% 0px -40% 0px",
+      },
+    );
+
+    cardRefs.current.forEach((card) => {
+      if (card) {
+        observer.observe(card);
+      }
+    });
+
+    window.addEventListener("scroll", scheduleCalculate, { passive: true });
+    window.addEventListener("resize", scheduleCalculate);
     frameId = window.requestAnimationFrame(() => {
       frameId = 0;
       calculateActiveIndex();
@@ -759,8 +795,9 @@ function ProductShowcase({ products, lang, text, onOpen }) {
       if (frameId) {
         window.cancelAnimationFrame(frameId);
       }
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
+      observer?.disconnect();
+      window.removeEventListener("scroll", scheduleCalculate);
+      window.removeEventListener("resize", scheduleCalculate);
     };
   }, [lang, products.length, productKeys]);
 
@@ -770,58 +807,70 @@ function ProductShowcase({ products, lang, text, onOpen }) {
 
   return (
     <div
-      className="story-shell"
+      className="product-showcase-section"
       ref={sectionRef}
       style={{ minHeight: products.length > 1 ? `${products.length * 80}vh` : "80vh" }}
     >
-      <div className="story-stage card">
-        <div className="story-stage-copy">
-          <small>{`0${activeIndex + 1}`}</small>
-          <h3>{activeProduct.name}</h3>
-          <p>{activeProduct.description || activeProduct.short_description}</p>
-          <div className="story-meta">
-            <div>
-              <strong>{activeProduct.model}</strong>
-              <span>Model</span>
+      <div className="product-showcase-layout">
+        <div className="product-sticky-column">
+          <div className="product-sticky-card card story-stage">
+            <div className="story-stage-copy">
+              <small>{`0${activeIndex + 1}`}</small>
+              <h3>{activeProduct.name}</h3>
+              <p>{activeProduct.description || activeProduct.short_description}</p>
+              <div className="story-meta">
+                <div>
+                  <strong>{activeProduct.model}</strong>
+                  <span>Model</span>
+                </div>
+                <div>
+                  <strong>{getCategoryLabel(activeProduct.category, lang)}</strong>
+                  <span>{text.categoryCount}</span>
+                </div>
+              </div>
+              <button className="primary-btn story-stage-action" onClick={() => onOpen(activeProduct)}>
+                {text.detail}
+              </button>
             </div>
-            <div>
-              <strong>{getCategoryLabel(activeProduct.category, lang)}</strong>
-              <span>{text.categoryCount}</span>
+            <div className="story-stage-photo">
+              <img
+                key={`${activeProduct.id || activeProduct.model}-${activeIndex}`}
+                src={activeProduct.cover_url}
+                alt={activeProduct.name}
+              />
             </div>
           </div>
         </div>
-        <div className="story-stage-photo">
-          <img
-            key={`${activeProduct.id || activeProduct.model}-${activeIndex}`}
-            src={activeProduct.cover_url}
-            alt={activeProduct.name}
-          />
-        </div>
-      </div>
-      <div className="story-scroll">
-        {products.map((product, index) => (
-          <article
-            key={product.id || product.model}
-            data-product-id={product.id || product.model}
-            className={activeIndex === index ? "story-card active" : "story-card"}
-          >
-            <div className="story-card-mobile-media">
-              {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
-              <div>
-                <p>{product.model}</p>
-                <strong>{getCategoryLabel(product.category, lang)}</strong>
+
+        <div className="product-scroll-column story-scroll">
+          {products.map((product, index) => (
+            <article
+              key={product.id || product.model}
+              ref={(node) => {
+                cardRefs.current[index] = node;
+              }}
+              data-index={index}
+              data-product-id={product.id || product.model}
+              className={activeIndex === index ? "product-scroll-card story-card active" : "product-scroll-card story-card"}
+            >
+              <div className="story-card-mobile-media">
+                {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
+                <div>
+                  <p>{product.model}</p>
+                  <strong>{getCategoryLabel(product.category, lang)}</strong>
+                </div>
               </div>
-            </div>
-            <div className="story-card-inner">
-              <small>{`0${index + 1}`}</small>
-              <h3>{product.name}</h3>
-              <p>{product.short_description}</p>
-            </div>
-            <button className="text-btn" onClick={() => onOpen(product)}>
-              {text.detail}
-            </button>
-          </article>
-        ))}
+              <div className="story-card-inner">
+                <small>{`0${index + 1}`}</small>
+                <h3>{product.name}</h3>
+                <p>{product.short_description}</p>
+              </div>
+              <button className="text-btn" onClick={() => onOpen(product)}>
+                {text.detail}
+              </button>
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   );
