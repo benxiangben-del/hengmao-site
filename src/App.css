@@ -1770,7 +1770,34 @@ img {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
+  html,
+  body,
+  #root,
+  .site-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
+  .hero,
+  .section,
+  .page,
+  .footer {
+    width: min(100% - 32px, 1180px);
+  }
+
+  .section,
+  .page {
+    padding-top: 40px;
+    padding-bottom: 24px;
+  }
+
   .topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1800,6 +1827,7 @@ img {
     border-bottom: 1px solid var(--line);
     background: rgba(6, 6, 6, 0.96);
     backdrop-filter: blur(18px);
+    z-index: 30;
   }
 
   .nav.open {
@@ -1811,6 +1839,7 @@ img {
     min-height: 46px;
     text-align: left;
     border-radius: 14px;
+    overflow-wrap: anywhere;
   }
 
   .mobile-menu-toggle {
@@ -1839,6 +1868,7 @@ img {
     font-size: 18px;
     letter-spacing: 0.03em;
     overflow-wrap: anywhere;
+    line-height: 1.15;
   }
 
   .brand small {
@@ -1857,6 +1887,13 @@ img {
     max-width: none;
     font-size: clamp(36px, 12vw, 54px);
     letter-spacing: -0.02em;
+    line-height: 0.96;
+    overflow-wrap: anywhere;
+  }
+
+  .section h2,
+  .page h1 {
+    overflow-wrap: anywhere;
   }
 
   .lead,
@@ -1881,6 +1918,7 @@ img {
   .hero-panel img {
     height: 260px;
     padding: 14px;
+    object-fit: contain;
   }
 
   .hero-stats,
@@ -1914,12 +1952,14 @@ img {
   .product-showcase-section,
   .story-shell {
     min-height: auto !important;
+    overflow: visible;
   }
 
   .product-showcase-layout,
   .story-shell {
     display: block;
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .product-sticky-image-column {
@@ -1937,13 +1977,16 @@ img {
   }
 
   .product-scroll-info-column {
-    display: grid;
-    gap: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow: visible;
   }
 
   .product-scroll-info-card {
-    padding: 16px;
+    padding: 20px;
     border-radius: 22px;
+    overflow: hidden;
   }
 
   .product-scroll-info-copy {
@@ -1963,17 +2006,30 @@ img {
     line-height: 1.75;
   }
 
+  .product-scroll-info-meta {
+    gap: 8px;
+  }
+
+  .product-scroll-info-meta span,
+  .product-scroll-feature-list li,
+  .mini-price strong,
+  .result-copy span,
+  .footer-contact-list span {
+    overflow-wrap: anywhere;
+  }
+
   .story-card-mobile-media {
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-columns: 124px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
     margin-bottom: 14px;
   }
 
   .story-card-mobile-media img {
-    height: 96px;
+    height: 104px;
     object-fit: contain;
+    object-position: center;
     padding: 8px;
     border-radius: 14px;
     background:
@@ -2028,10 +2084,15 @@ img {
 
   .product-image {
     padding: 12px;
+    min-height: 220px;
+    display: grid;
+    place-items: center;
   }
 
   .product-image img {
     height: 210px;
+    object-fit: contain;
+    object-position: center;
   }
 
   .product-copy {
@@ -2055,13 +2116,21 @@ img {
   .gallery-main img {
     height: 300px;
     padding: 14px;
+    object-fit: contain;
+    object-position: center;
   }
 
   .thumb-row {
     display: flex;
     overflow-x: auto;
+    overflow-y: hidden;
     gap: 10px;
     padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+
+  .thumb-row::-webkit-scrollbar {
+    display: none;
   }
 
   .thumb {
@@ -2075,6 +2144,12 @@ img {
   .spec-row {
     display: grid;
     gap: 6px;
+    min-width: 0;
+  }
+
+  .spec-row strong,
+  .spec-row span {
+    overflow-wrap: anywhere;
   }
 
   .search-panel,
@@ -2085,10 +2160,13 @@ img {
   .result-card {
     grid-template-columns: 1fr;
     gap: 14px;
+    min-width: 0;
   }
 
   .result-card img {
     height: 190px;
+    object-fit: contain;
+    object-position: center;
   }
 
   .result-card .primary-btn {
@@ -2122,6 +2200,21 @@ img {
 
   .product-card-footer {
     gap: 12px;
+  }
+
+  .footer {
+    padding: 34px 0 42px;
+  }
+
+  .footer-grid,
+  .footer-contact-list {
+    gap: 16px;
+  }
+
+  .footer h3 {
+    font-size: 22px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .admin-cms-main,
