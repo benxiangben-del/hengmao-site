@@ -17,7 +17,7 @@
 
 html,
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -384,6 +384,10 @@ img {
   padding-bottom: 80px;
 }
 
+.product-home-section {
+  overflow: visible;
+}
+
 .section-heading {
   max-width: 760px;
   margin-bottom: 28px;
@@ -485,6 +489,7 @@ img {
   align-self: flex-start;
   height: fit-content;
   overflow: visible;
+  z-index: 2;
 }
 
 .product-sticky-image-card,
@@ -671,6 +676,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  overflow: visible;
 }
 
 .product-scroll-info-card {
@@ -768,6 +774,42 @@ img {
 
 .story-card-mobile-media {
   display: none;
+}
+
+@media (min-width: 769px) {
+  .product-home-section,
+  .product-showcase-section,
+  .product-showcase-layout,
+  .product-scroll-info-column {
+    overflow: visible;
+  }
+
+  .product-showcase-section {
+    position: relative;
+    min-height: var(--showcase-height, auto);
+  }
+
+  .product-showcase-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
+    gap: 32px;
+    align-items: flex-start;
+  }
+
+  .product-sticky-image-column {
+    position: sticky;
+    top: 110px;
+    align-self: flex-start;
+    height: fit-content;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  .product-sticky-image-card,
+  .product-scroll-info-card {
+    height: min(720px, calc(100vh - 140px));
+    min-height: 560px;
+  }
 }
 
 @keyframes storyReveal {

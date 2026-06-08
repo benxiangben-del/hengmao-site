@@ -411,7 +411,7 @@ function App() {
             </div>
           </section>
 
-          <section className="section section-alt">
+          <section className="section section-alt product-home-section">
             <div className="section-heading">
               <p className="eyebrow">{text.featured}</p>
               <h2>{text.productCenterTitle}</h2>
