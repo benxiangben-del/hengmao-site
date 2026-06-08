@@ -760,20 +760,23 @@ function ProductShowcase({ products, lang, text, onOpen }) {
     setActiveIndex((current) => Math.min(current, products.length - 1));
     observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
-          const nextIndex = Number(entry.target.getAttribute("data-index"));
-          if (!Number.isNaN(nextIndex)) {
-            setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
-          }
-        });
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!visibleEntry) {
+          return;
+        }
+
+        const nextIndex = Number(visibleEntry.target.getAttribute("data-index"));
+        if (!Number.isNaN(nextIndex)) {
+          setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
+        }
       },
       {
         root: null,
-        threshold: 0.45,
-        rootMargin: "-30% 0px -40% 0px",
+        threshold: [0.35, 0.5, 0.65],
+        rootMargin: "-25% 0px -35% 0px",
       },
     );
 
@@ -812,27 +815,13 @@ function ProductShowcase({ products, lang, text, onOpen }) {
       style={{ minHeight: products.length > 1 ? `${products.length * 80}vh` : "80vh" }}
     >
       <div className="product-showcase-layout">
-        <div className="product-sticky-column">
-          <div className="product-sticky-card card story-stage">
-            <div className="story-stage-copy">
-              <small>{`0${activeIndex + 1}`}</small>
-              <h3>{activeProduct.name}</h3>
-              <p>{activeProduct.description || activeProduct.short_description}</p>
-              <div className="story-meta">
-                <div>
-                  <strong>{activeProduct.model}</strong>
-                  <span>Model</span>
-                </div>
-                <div>
-                  <strong>{getCategoryLabel(activeProduct.category, lang)}</strong>
-                  <span>{text.categoryCount}</span>
-                </div>
-              </div>
-              <button className="primary-btn story-stage-action" onClick={() => onOpen(activeProduct)}>
-                {text.detail}
-              </button>
+        <aside className="product-sticky-image-column">
+          <div className="product-sticky-image-card card">
+            <div className="product-sticky-image-meta">
+              <span>{String(activeIndex + 1).padStart(2, "0")}</span>
+              <strong>{activeProduct.model}</strong>
             </div>
-            <div className="story-stage-photo">
+            <div className="product-sticky-image-frame">
               <img
                 key={`${activeProduct.id || activeProduct.model}-${activeIndex}`}
                 src={activeProduct.cover_url}
@@ -840,9 +829,9 @@ function ProductShowcase({ products, lang, text, onOpen }) {
               />
             </div>
           </div>
-        </div>
+        </aside>
 
-        <div className="product-scroll-column story-scroll">
+        <div className="product-scroll-info-column">
           {products.map((product, index) => (
             <article
               key={product.id || product.model}
@@ -851,7 +840,7 @@ function ProductShowcase({ products, lang, text, onOpen }) {
               }}
               data-index={index}
               data-product-id={product.id || product.model}
-              className={activeIndex === index ? "product-scroll-card story-card active" : "product-scroll-card story-card"}
+              className={activeIndex === index ? "product-scroll-info-card active" : "product-scroll-info-card"}
             >
               <div className="story-card-mobile-media">
                 {product.cover_url ? <img src={product.cover_url} alt={product.name} /> : null}
@@ -860,10 +849,21 @@ function ProductShowcase({ products, lang, text, onOpen }) {
                   <strong>{getCategoryLabel(product.category, lang)}</strong>
                 </div>
               </div>
-              <div className="story-card-inner">
-                <small>{`0${index + 1}`}</small>
+              <div className="product-scroll-info-copy">
+                <small>{String(index + 1).padStart(2, "0")}</small>
                 <h3>{product.name}</h3>
+                <div className="product-scroll-info-meta">
+                  <span>{product.model}</span>
+                  <span>{getCategoryLabel(product.category, lang)}</span>
+                </div>
                 <p>{product.short_description}</p>
+                {product.features?.length ? (
+                  <ul className="product-scroll-feature-list">
+                    {product.features.slice(0, 4).map((feature) => (
+                      <li key={feature}>{feature}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
               <button className="text-btn" onClick={() => onOpen(product)}>
                 {text.detail}
