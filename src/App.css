@@ -1541,19 +1541,8 @@ img {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .story-shell,
-  .story-stage {
-    grid-template-columns: 1fr;
-  }
-
-  .story-stage {
-    position: static;
-    min-height: auto;
-  }
-
   .story-stage-photo img {
     height: 380px;
-    transform: none;
   }
 
   .result-card {
@@ -1734,10 +1723,13 @@ img {
   .story-shell {
     display: grid;
     grid-template-columns: 1fr;
+    min-height: auto !important;
   }
 
   .story-stage {
     display: none;
+    position: static;
+    min-height: auto;
   }
 
   .story-scroll {

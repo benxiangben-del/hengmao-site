@@ -702,7 +702,7 @@ function ProductGrid({ products, lang, text, onOpen }) {
 
 function ProductShowcase({ products, lang, text, onOpen }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const cardRefs = useRef([]);
+  const sectionRef = useRef(null);
   const productKeys = products.map((product) => product.id || product.model).join("|");
   const activeProduct = products[Math.min(activeIndex, products.length - 1)] || products[0];
 
@@ -713,30 +713,26 @@ function ProductShowcase({ products, lang, text, onOpen }) {
     }
 
     let frameId = 0;
-    cardRefs.current = cardRefs.current.slice(0, products.length);
 
     const calculateActiveIndex = () => {
-      const cards = cardRefs.current.filter(Boolean);
-      if (!cards.length) {
+      if (window.matchMedia("(max-width: 768px)").matches) {
         return;
       }
 
+      const section = sectionRef.current;
+      if (!section) {
+        return;
+      }
+
+      const rect = section.getBoundingClientRect();
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-      const targetY = viewportHeight * 0.48;
-      let nextIndex = 0;
-      let closestDistance = Number.POSITIVE_INFINITY;
+      const scrollRange = Math.max(rect.height - viewportHeight, 1);
+      const progress = Math.min(1, Math.max(0, -rect.top / scrollRange));
+      const nextIndex = Math.min(
+        products.length - 1,
+        Math.max(0, Math.floor(progress * products.length)),
+      );
 
-      cards.forEach((card, index) => {
-        const rect = card.getBoundingClientRect();
-        const cardCenter = rect.top + rect.height / 2;
-        const distance = Math.abs(cardCenter - targetY);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          nextIndex = index;
-        }
-      });
-
-      nextIndex = Math.min(products.length - 1, Math.max(0, nextIndex));
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
     };
 
@@ -773,7 +769,11 @@ function ProductShowcase({ products, lang, text, onOpen }) {
   }
 
   return (
-    <div className="story-shell">
+    <div
+      className="story-shell"
+      ref={sectionRef}
+      style={{ minHeight: products.length > 1 ? `${products.length * 80}vh` : "80vh" }}
+    >
       <div className="story-stage card">
         <div className="story-stage-copy">
           <small>{`0${activeIndex + 1}`}</small>
@@ -802,9 +802,6 @@ function ProductShowcase({ products, lang, text, onOpen }) {
         {products.map((product, index) => (
           <article
             key={product.id || product.model}
-            ref={(node) => {
-              cardRefs.current[index] = node;
-            }}
             data-product-id={product.id || product.model}
             className={activeIndex === index ? "story-card active" : "story-card"}
           >
