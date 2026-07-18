@@ -3,6 +3,10 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/((?!admin(?:\\.html)?$|assets/|media/).*)",
+      "destination": "/index.html"
     }
   ]
 }
