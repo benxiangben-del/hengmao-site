@@ -3,6 +3,7 @@ import { brand, demoProduct } from "../content/demoSite.js";
 import ModelSearch from "../components/ModelSearch.jsx";
 import ProductCard from "../components/ProductCard.jsx";
 import Icon from "../components/Icon.jsx";
+import ParticleField from "../components/ParticleField.jsx";
 
 export default function HomePage({ lang, text, router }) {
   const supportItems = [
@@ -15,7 +16,9 @@ export default function HomePage({ lang, text, router }) {
   return (
     <main id="main-content">
       <section className="home-hero">
+        <ParticleField />
         <div className="hero-grid-overlay" aria-hidden="true" />
+        <div className="hero-light-sweep" aria-hidden="true" />
         <div className="site-container hero-layout">
           <div className="hero-copy">
             <p className="eyebrow eyebrow--light">{lang === "zh" ? "清洁设备 · 产品与支持" : "Cleaning Equipment · Products & Support"}</p>
@@ -28,6 +31,9 @@ export default function HomePage({ lang, text, router }) {
           </div>
           <div className="hero-product">
             <div className="hero-product-halo" aria-hidden="true" />
+            <div className="hero-orbit hero-orbit--outer" aria-hidden="true"><i /><i /><i /></div>
+            <div className="hero-orbit hero-orbit--inner" aria-hidden="true"><i /><i /></div>
+            <div className="hero-product-scan" aria-hidden="true" />
             <span className="hero-chip">{text.demo}</span>
             <img src={demoProduct.image} alt={demoProduct.name[lang]} />
             <div className="hero-product-caption">
