@@ -3,7 +3,7 @@ import Icon from "./Icon.jsx";
 
 const AUTOPLAY_DELAY = 5200;
 
-export default function HeroProductCarousel({ lang, text, products }) {
+export default function HeroProductCarousel({ lang, text, products, demoMode = false }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -51,7 +51,7 @@ export default function HeroProductCarousel({ lang, text, products }) {
       className={`hero-product hero-carousel${paused || reducedMotion ? " is-paused" : ""}`}
       role="region"
       aria-roledescription={lang === "zh" ? "产品轮播" : "Product carousel"}
-      aria-label={lang === "zh" ? "演示产品款式" : "Demo product styles"}
+      aria-label={demoMode ? (lang === "zh" ? "演示产品款式" : "Demo product styles") : (lang === "zh" ? "推荐产品" : "Featured products")}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -74,7 +74,7 @@ export default function HeroProductCarousel({ lang, text, products }) {
         />
       </div>
 
-      <span className="hero-chip">{text.demo}</span>
+      {demoMode ? <span className="hero-chip">{text.demo}</span> : null}
       <div className="hero-product-caption">
         <span>{product.category[lang]}</span>
         <strong>{product.name[lang]}</strong>

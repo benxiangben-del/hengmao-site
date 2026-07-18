@@ -1,5 +1,7 @@
 # 后台、Supabase 与新版前台连接说明
 
+> **历史方案，已于 2026-07-18 停用。** 因当前条件不再采用 Supabase、Cloudflare D1 或 R2，以下内容只保留为决策记录，禁止按本文连接生产环境。当前方案见 `11-local-content-workbench.md`。
+
 ## 当前结论
 
 旧后台必须先改造后才能连接新版前台。旧后台是一条产品对应一组中文字段的结构，不能可靠表达新版前台需要的双语发布、型号级安装/使用/安全指南、媒体权属、资料下载和首页推荐位。
@@ -13,7 +15,7 @@
 
 ## 为什么目前还不能称为“正式上线”
 
-仓库中没有 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，也无法从本地代码判断线上 Supabase 是否已经完成备份、是否允许新增 `content_v2` schema、是否已建立管理员账号。因此当前完成的是连接代码、后台界面与安全迁移方案，不是对线上数据库的未授权修改。
+仓库中没有 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_PUBLISHABLE_KEY`（或旧版 `VITE_SUPABASE_ANON_KEY`），也无法从本地代码判断线上 Supabase 是否已经完成备份、是否允许新增 `content_v2` schema、是否已建立管理员账号。因此当前完成的是连接代码、后台界面与安全迁移方案，不是对线上数据库的未授权修改。
 
 后台打开后显示“未连接数据库”是正确状态。此时保存只写入当前浏览器的 `localStorage`，不会写入服务器，也不会影响客户看到的网站。
 
@@ -33,10 +35,10 @@
 
    ```dotenv
    VITE_SUPABASE_URL=https://你的项目.supabase.co
-   VITE_SUPABASE_ANON_KEY=你的公开 anon key
+   VITE_SUPABASE_PUBLISHABLE_KEY=你的公开 publishable key
    ```
 
-   前端只能使用 anon key。`service_role` 密钥不得放入网页代码或 `.env.local`。
+   新项目优先使用 publishable key；旧项目也可以把 legacy anon key 保存为 `VITE_SUPABASE_ANON_KEY`。`secret` 和 `service_role` 密钥不得放入网页代码、聊天记录或 `.env.local`。
 
 7. 重启开发服务器。后台应由“结构预览模式”变为登录页，登录后显示“Supabase 已连接”。
 8. 先新建一款草稿产品，验证中英文、参数、指南和首页推荐；不要直接迁移全部旧数据。

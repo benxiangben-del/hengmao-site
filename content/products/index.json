@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-07-18T00:00:00.000Z",
+  "products": [
+    {
+      "id": "demo-local-product",
+      "slug": "demo-portable-washer",
+      "status": "draft"
+    }
+  ]
+}

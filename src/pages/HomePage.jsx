@@ -30,7 +30,7 @@ export default function HomePage({ lang, text, router, catalog }) {
               <SiteLink className="button button--ghost" to={localizePath(lang, "support")} router={router}>{text.getSupport}</SiteLink>
             </div>
           </div>
-          <HeroProductCarousel lang={lang} text={text} products={catalog.heroProducts} />
+          <HeroProductCarousel lang={lang} text={text} products={catalog.heroProducts} demoMode={catalog.source !== "static-content"} />
         </div>
       </section>
 
@@ -42,7 +42,7 @@ export default function HomePage({ lang, text, router, catalog }) {
         <div className="site-container">
           <div className="section-heading split-heading">
             <div><p className="eyebrow">{lang === "zh" ? "PRODUCTS" : "PRODUCTS"}</p><h2>{lang === "zh" ? "找到适合的清洁设备" : "Find the right cleaning equipment"}</h2></div>
-            <p>{catalog.source === "supabase-v2" ? (lang === "zh" ? "这里展示后台已发布并通过当前语言审核的产品。" : "Products published and approved for the current language are shown here.") : (lang === "zh" ? "当前使用演示产品验证完整页面结构；正式内容库接通后将自动读取已发布产品。" : "Demo content validates the page structure until the production content library is connected.")}</p>
+            <p>{catalog.source === "static-content" ? (lang === "zh" ? "这里展示内容工作台中已正式发布并通过当前语言审核的产品。" : "Products published and approved for the current language in the content workbench are shown here.") : (lang === "zh" ? "当前使用演示产品验证完整页面结构；正式产品发布后将自动替换演示内容。" : "Demo content validates the page structure and is replaced automatically when formal products are published.")}</p>
           </div>
           <div className="catalog-grid">{catalog.products.slice(0, 3).map((product) => <ProductCard key={product.id || product.slug} product={product} lang={lang} text={text} router={router} />)}</div>
         </div>

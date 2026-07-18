@@ -1,0 +1,53 @@
+{
+  "id": "demo-local-product",
+  "model": "型号待确认",
+  "slug": "demo-portable-washer",
+  "categoryKey": "portable-washer",
+  "status": "draft",
+  "lifecycleStatus": "active",
+  "sortOrder": 0,
+  "translations": {
+    "zh-CN": {
+      "status": "draft",
+      "name": "便携式高压清洗设备（演示）",
+      "shortDescription": "用于验证新版官网产品结构与后台字段的演示记录。",
+      "description": "正式型号、参数、安装说明和安全内容将在资料确认后录入。",
+      "featuresText": "",
+      "applicationsText": "",
+      "seoTitle": "",
+      "seoDescription": ""
+    },
+    "en": {
+      "status": "draft",
+      "name": "Portable Pressure Washer (Demo)",
+      "shortDescription": "A demonstration record for validating the bilingual product workflow.",
+      "description": "The verified model, specifications and support content will be added after review.",
+      "featuresText": "",
+      "applicationsText": "",
+      "seoTitle": "",
+      "seoDescription": ""
+    }
+  },
+  "specifications": [],
+  "packageContents": [],
+  "guides": {
+    "installation": { "requirement": "pending", "version": "1.0", "technicalReviewStatus": "unverified", "zhStatus": "draft", "enStatus": "draft", "zhContent": "", "enContent": "" },
+    "usage": { "requirement": "required", "version": "1.0", "technicalReviewStatus": "unverified", "zhStatus": "draft", "enStatus": "draft", "zhContent": "", "enContent": "" },
+    "safety": { "requirement": "required", "version": "1.0", "technicalReviewStatus": "unverified", "zhStatus": "draft", "enStatus": "draft", "zhContent": "", "enContent": "" },
+    "maintenance": { "requirement": "pending", "version": "1.0", "technicalReviewStatus": "unverified", "zhStatus": "draft", "enStatus": "draft", "zhContent": "", "enContent": "" }
+  },
+  "media": [
+    {
+      "assetKey": "demo-portable-cover",
+      "url": "/media/demo/demo-portable-washer.png",
+      "role": "cover",
+      "kind": "image",
+      "rightsStatus": "pending",
+      "altZh": "便携式高压清洗设备演示图",
+      "altEn": "Portable pressure washer demonstration image"
+    }
+  ],
+  "documents": [],
+  "placements": { "homeHero": true, "homeHeroOrder": 1 },
+  "updatedAt": "2026-07-18T00:00:00.000Z"
+}

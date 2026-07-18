@@ -2,23 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import BrandMark from "./components/BrandMark.jsx";
 import Icon from "./components/Icon.jsx";
 import { brand, heroProducts } from "./content/demoSite.js";
-import { isSupabaseConfigured } from "./lib/supabase.js";
-import { getSession, signIn, signOut } from "./lib/authApi.js";
-import { fetchAdminProductRecords, saveAdminProductRecord, uploadAdminProductMedia } from "./lib/contentApiV2.js";
+import { createDemoProductRecord, createEmptyProductRecord, PRODUCT_CATEGORIES } from "./content/productModel.js";
+import { connectLocalWorkspace, downloadCatalogBackup, importLocalMedia, localWorkspaceSupported, saveLocalCatalog } from "./lib/localContentWorkspace.js";
 import "./styles/tokens.css";
 import "./styles/globals.css";
 import "./styles/admin.css";
 
-const PREVIEW_STORAGE_KEY = "hengmao-admin-v2-preview";
-
-const CATEGORIES = [
-  { key: "portable-washer", zh: "便携式清洗设备", en: "Portable Washers" },
-  { key: "trolley-washer", zh: "推车式清洗设备", en: "Trolley Washers" },
-  { key: "spray-gun", zh: "水枪", en: "Spray Guns" },
-  { key: "high-pressure-hose", zh: "高压管", en: "High-pressure Hoses" },
-  { key: "steel-wire-hose", zh: "钢丝管", en: "Steel-wire Hoses" },
-  { key: "accessory", zh: "其他配件", en: "Other Accessories" },
-];
+const CATEGORIES = PRODUCT_CATEGORIES;
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "内容概览", short: "OV" },
@@ -38,89 +28,8 @@ const EDITOR_TABS = [
   { key: "publishing", label: "媒体与发布" },
 ];
 
-const EMPTY_TRANSLATION = {
-  status: "draft",
-  name: "",
-  shortDescription: "",
-  description: "",
-  featuresText: "",
-  applicationsText: "",
-  seoTitle: "",
-  seoDescription: "",
-};
-
-const EMPTY_GUIDE = {
-  requirement: "pending",
-  version: "1.0",
-  technicalReviewStatus: "unverified",
-  zhStatus: "draft",
-  enStatus: "draft",
-  zhContent: "",
-  enContent: "",
-};
-
-function newProductRecord() {
-  return {
-    id: null,
-    model: "",
-    slug: "",
-    categoryKey: "portable-washer",
-    status: "draft",
-    lifecycleStatus: "active",
-    sortOrder: 0,
-    translations: {
-      "zh-CN": { ...EMPTY_TRANSLATION },
-      en: { ...EMPTY_TRANSLATION },
-    },
-    specifications: [],
-    packageContents: [],
-    guides: {
-      installation: { ...EMPTY_GUIDE },
-      usage: { ...EMPTY_GUIDE, requirement: "required" },
-      safety: { ...EMPTY_GUIDE, requirement: "required" },
-      maintenance: { ...EMPTY_GUIDE },
-    },
-    media: [],
-    documents: [],
-    placements: { homeHero: false, homeHeroOrder: 0 },
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function demoProductRecord() {
-  return {
-    ...newProductRecord(),
-    id: "demo-local-product",
-    model: "型号待确认",
-    slug: "demo-portable-washer",
-    translations: {
-      "zh-CN": {
-        ...EMPTY_TRANSLATION,
-        name: "便携式高压清洗设备（演示）",
-        shortDescription: "用于验证新版官网产品结构与后台字段的演示记录。",
-        description: "正式型号、参数、安装说明和安全内容将在资料确认后录入。",
-      },
-      en: {
-        ...EMPTY_TRANSLATION,
-        name: "Portable Pressure Washer (Demo)",
-        shortDescription: "A demonstration record for validating the bilingual product workflow.",
-        description: "The verified model, specifications and support content will be added after review.",
-      },
-    },
-    media: [
-      {
-        assetKey: "demo-portable-cover",
-        url: "/media/demo/demo-portable-washer.png",
-        role: "cover",
-        kind: "image",
-        rightsStatus: "pending",
-        altZh: "便携式高压清洗设备演示图",
-        altEn: "Portable pressure washer demonstration image",
-      },
-    ],
-    placements: { homeHero: true, homeHeroOrder: 1 },
-  };
-}
+const newProductRecord = createEmptyProductRecord;
+const demoProductRecord = createDemoProductRecord;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -153,22 +62,9 @@ function productReadiness(product) {
   return Math.round((zh + en + cover + approvedSpecs) / 4);
 }
 
-function readPreviewProducts() {
-  try {
-    const stored = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // Browser storage is optional in preview mode.
-  }
-  return [demoProductRecord()];
-}
-
 function AdminApp() {
-  const previewMode = !isSupabaseConfigured;
-  const [session, setSession] = useState(null);
-  const [login, setLogin] = useState({ email: "", password: "" });
-  const [loginError, setLoginError] = useState("");
-  const [products, setProducts] = useState(() => (previewMode ? readPreviewProducts() : []));
+  const [workspace, setWorkspace] = useState({ connected: false, name: "", updatedAt: "" });
+  const [products, setProducts] = useState(() => [demoProductRecord()]);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(() => newProductRecord());
@@ -177,7 +73,7 @@ function AdminApp() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(!previewMode);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -205,42 +101,31 @@ function AdminApp() {
     document.title = "恒猫内容工作台｜HENGMAO CMS";
   }, []);
 
-  useEffect(() => {
-    if (previewMode) return;
-    getSession()
-      .then((nextSession) => setSession(nextSession))
-      .catch((sessionError) => setError(sessionError.message))
-      .finally(() => setLoading(false));
-  }, [previewMode]);
-
-  useEffect(() => {
-    if (!session || previewMode) return;
-    setLoading(true);
-    fetchAdminProductRecords()
-      .then((records) => setProducts(records))
-      .catch((loadError) => setError(`v2 内容库尚未就绪：${loadError.message}`))
-      .finally(() => setLoading(false));
-  }, [session, previewMode]);
-
   function showNotice(message) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 3200);
   }
 
-  async function handleLogin() {
+  async function handleConnectWorkspace() {
     try {
-      setLoginError("");
-      const { session: nextSession } = await signIn(login.email, login.password);
-      setSession(nextSession);
-    } catch (signInError) {
-      setLoginError(signInError.message || "登录失败，请检查账号和密码。");
+      setLoading(true);
+      setError("");
+      const result = await connectLocalWorkspace();
+      setProducts(result.products.length ? result.products : [demoProductRecord()]);
+      setWorkspace({ connected: true, name: result.name, updatedAt: result.updatedAt });
+      setSelectedId(null);
+      setForm(newProductRecord());
+      showNotice(`已连接本地项目：${result.name}`);
+    } catch (connectError) {
+      if (connectError?.name !== "AbortError") setError(connectError.message || "连接项目文件夹失败。");
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleLogout() {
-    await signOut();
-    setSession(null);
-    setProducts([]);
+  function handleBackup() {
+    downloadCatalogBackup(products);
+    showNotice("已导出产品目录备份。");
   }
 
   function openProduct(product) {
@@ -347,6 +232,10 @@ function AdminApp() {
   }
 
   async function saveProduct() {
+    if (!workspace.connected) {
+      setError("请先点击右上角“连接项目文件夹”，选择 hengmao-site 根目录。");
+      return;
+    }
     const validationError = validateProduct(form);
     if (validationError) {
       setError(validationError);
@@ -355,26 +244,16 @@ function AdminApp() {
     try {
       setSaving(true);
       setError("");
-      const record = { ...clone(form), id: form.id || `preview-${Date.now()}`, updatedAt: new Date().toISOString() };
-      if (previewMode) {
-        const next = selectedId
-          ? products.map((product) => product.id === selectedId ? record : product)
-          : [...products, record];
-        setProducts(next);
-        setSelectedId(record.id);
-        setForm(record);
-        try { window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(next)); } catch { /* optional */ }
-        showNotice("已保存到本机结构预览；尚未写入 Supabase。");
-      } else {
-        const saved = await saveAdminProductRecord(record);
-        const next = products.some((product) => product.id === saved.id)
-          ? products.map((product) => product.id === saved.id ? saved : product)
-          : [...products, saved];
-        setProducts(next);
-        setSelectedId(saved.id);
-        setForm(saved);
-        showNotice("产品已保存到 Supabase v2 内容库。");
-      }
+      const record = { ...clone(form), id: form.id || `product-${crypto.randomUUID()}`, updatedAt: new Date().toISOString() };
+      const next = selectedId
+        ? products.map((product) => product.id === selectedId ? record : product)
+        : [...products, record];
+      const catalog = await saveLocalCatalog(next);
+      setProducts(next);
+      setSelectedId(record.id);
+      setForm(record);
+      setWorkspace((current) => ({ ...current, updatedAt: catalog.updatedAt }));
+      showNotice("已写入本地产品文件和官网静态目录；发布前请执行内容校验并推送 GitHub。");
     } catch (saveError) {
       setError(saveError.message || "保存失败。");
     } finally {
@@ -383,48 +262,25 @@ function AdminApp() {
   }
 
   async function uploadMedia(file, role) {
-    if (previewMode) {
-      setError("当前是结构预览，素材不会上传。正式连接 Supabase 后可在这里上传图片和视频。");
+    if (!workspace.connected) {
+      setError("请先连接 hengmao-site 项目文件夹，再导入产品素材。");
       return;
     }
-    if (!form.id) {
-      setError("请先保存产品基础信息，再上传素材。");
+    if (!form.id || !form.slug) {
+      setError("请先填写型号和 URL slug，并保存产品，再导入素材。");
       return;
     }
     try {
       setMediaUploading(true);
       setError("");
-      const saved = await uploadAdminProductMedia(form.id, file, role);
-      setProducts((current) => current.map((product) => product.id === saved.id ? saved : product));
-      setForm(saved);
-      showNotice("素材已上传；请补充中英文替代文字并确认权属状态。");
+      const media = await importLocalMedia(file, form.slug, role);
+      setForm((current) => ({ ...current, media: [...current.media, media] }));
+      showNotice("素材已复制到产品目录；请补充中英文替代文字、确认权属并保存产品。");
     } catch (uploadError) {
-      setError(uploadError.message || "素材上传失败。");
+      setError(uploadError.message || "素材导入失败。");
     } finally {
       setMediaUploading(false);
     }
-  }
-
-  if (!previewMode && loading && !session) {
-    return <div className="hm-admin-loading"><span>HM</span><p>正在连接内容工作台…</p></div>;
-  }
-
-  if (!previewMode && !session) {
-    return (
-      <main className="hm-admin-login">
-        <section className="hm-admin-login-card">
-          <BrandMark brand={brand} />
-          <p className="hm-admin-kicker">SECURE CONTENT WORKSPACE</p>
-          <h1>登录恒猫内容工作台</h1>
-          <p>使用 Supabase Auth 管理员账号登录。产品内容、媒体和发布状态将写入同一套 v2 内容库。</p>
-          <Field label="邮箱" value={login.email} onChange={(value) => setLogin((current) => ({ ...current, email: value }))} />
-          <Field label="密码" type="password" value={login.password} onChange={(value) => setLogin((current) => ({ ...current, password: value }))} onEnter={handleLogin} />
-          {loginError ? <div className="hm-admin-alert is-error">{loginError}</div> : null}
-          <button className="hm-admin-button is-primary is-wide" type="button" onClick={handleLogin}>登录后台</button>
-          <a className="hm-admin-text-link" href="/zh/">返回官网</a>
-        </section>
-      </main>
-    );
   }
 
   return (
@@ -445,7 +301,7 @@ function AdminApp() {
           ))}
         </nav>
         <div className="hm-admin-sidebar-meta">
-          <span className={`hm-admin-connection${previewMode ? " is-preview" : ""}`}><i />{previewMode ? "结构预览模式" : "Supabase 已连接"}</span>
+          <span className={`hm-admin-connection${workspace.connected ? "" : " is-preview"}`}><i />{workspace.connected ? "本地项目已连接" : "等待文件夹授权"}</span>
           <small>内容模型 v1.0</small>
         </div>
       </aside>
@@ -458,21 +314,23 @@ function AdminApp() {
             <h1>{activeNav === "products" && selectedId ? "编辑双语产品" : "恒猫内容工作台"}</h1>
           </div>
           <div className="hm-admin-top-actions">
-            <span className={`hm-admin-mode-pill${previewMode ? " is-preview" : ""}`}>{previewMode ? "未连接数据库" : "LIVE DATA"}</span>
-            <a className="hm-admin-button is-secondary" href="/zh/" target="_blank" rel="noreferrer">查看官网</a>
-            {!previewMode ? <button className="hm-admin-button is-secondary" type="button" onClick={handleLogout}>退出</button> : null}
+            <span className={`hm-admin-mode-pill${workspace.connected ? "" : " is-preview"}`}>{workspace.connected ? workspace.name : "未连接项目"}</span>
+            <button className="hm-admin-button is-primary hm-admin-connect-action" type="button" onClick={handleConnectWorkspace}>{workspace.connected ? "重新连接" : "连接项目文件夹"}</button>
+            <button className="hm-admin-button is-secondary hm-admin-backup-action" type="button" onClick={handleBackup}>导出备份</button>
+            <a className="hm-admin-button is-secondary hm-admin-view-action" href="/zh/" target="_blank" rel="noreferrer">查看官网</a>
           </div>
         </header>
 
-        {previewMode ? (
-          <div className="hm-admin-banner">
-            <Icon name="shield" size={21} />
-            <div><strong>当前是结构预览，不是服务器后台</strong><p>您可以体验字段与工作流，保存内容只保留在本机浏览器；配置并迁移 Supabase 后才会成为正式后台。</p></div>
+        <div className={`hm-admin-banner${workspace.connected ? " is-connected" : ""}`}>
+          <Icon name={workspace.connected ? "check" : "folder"} size={21} />
+          <div>
+            <strong>{workspace.connected ? `已连接 ${workspace.name}` : "请先连接网站项目文件夹"}</strong>
+            <p>{workspace.connected ? "保存产品会同时更新源记录和官网静态目录；图片、视频会复制到固定产品素材文件夹。" : "点击右上角“连接项目文件夹”，选择 C:\\Users\\XR\\Desktop\\hengmao-site。浏览器只会在您授权后读写该目录。"}</p>
           </div>
-        ) : null}
+        </div>
         {notice ? <div className="hm-admin-toast is-success">{notice}</div> : null}
         {error ? <div className="hm-admin-toast is-error"><span>{error}</span><button type="button" onClick={() => setError("")}>关闭</button></div> : null}
-        {loading ? <div className="hm-admin-progress">正在同步 v2 内容库…</div> : null}
+        {loading ? <div className="hm-admin-progress">正在读取本地产品目录…</div> : null}
 
         <main className="hm-admin-main">
           {activeNav === "dashboard" ? <Dashboard dashboard={dashboard} products={products} onNew={startProduct} onOpen={openProduct} /> : null}
@@ -486,7 +344,7 @@ function AdminApp() {
               form={form}
               editorTab={editorTab}
               saving={saving}
-              previewMode={previewMode}
+              workspaceConnected={workspace.connected}
               mediaUploading={mediaUploading}
               onQuery={setQuery}
               onStatus={setStatusFilter}
@@ -508,7 +366,7 @@ function AdminApp() {
           {activeNav === "support" ? <SupportOverview products={products} onOpen={openProduct} /> : null}
           {activeNav === "media" ? <MediaOverview products={products} onOpen={openProduct} /> : null}
           {activeNav === "homepage" ? <HomepagePlacements products={products} onOpen={openProduct} /> : null}
-          {activeNav === "settings" ? <SettingsOverview previewMode={previewMode} /> : null}
+          {activeNav === "settings" ? <SettingsOverview workspace={workspace} supported={localWorkspaceSupported} onConnect={handleConnectWorkspace} /> : null}
         </main>
       </div>
     </div>
@@ -548,7 +406,7 @@ function Dashboard({ dashboard, products, onNew, onOpen }) {
 
 function ProductsWorkspace(props) {
   const {
-    products, allCount, query, statusFilter, selectedId, form, editorTab, saving, previewMode, mediaUploading,
+    products, allCount, query, statusFilter, selectedId, form, editorTab, saving, workspaceConnected, mediaUploading,
     onQuery, onStatus, onOpen, onNew, onTab, onRoot, onTranslation, onGuide,
     onPlacement, onList, onAddSpec, onAddPackage, onRemoveList, onSave, onMediaUpload,
   } = props;
@@ -592,7 +450,7 @@ function ProductsWorkspace(props) {
         {editorTab === "en" ? <TranslationEditor locale="en" data={form.translations.en} onChange={onTranslation} /> : null}
         {editorTab === "technical" ? <TechnicalEditor form={form} onList={onList} onAddSpec={onAddSpec} onAddPackage={onAddPackage} onRemove={onRemoveList} /> : null}
         {editorTab === "guides" ? <GuidesEditor guides={form.guides} onChange={onGuide} /> : null}
-        {editorTab === "publishing" ? <PublishingEditor form={form} onRoot={onRoot} onPlacement={onPlacement} onList={onList} onMediaUpload={onMediaUpload} previewMode={previewMode} mediaUploading={mediaUploading} /> : null}
+        {editorTab === "publishing" ? <PublishingEditor form={form} onRoot={onRoot} onPlacement={onPlacement} onList={onList} onMediaUpload={onMediaUpload} workspaceConnected={workspaceConnected} mediaUploading={mediaUploading} /> : null}
       </section>
     </div>
   );
@@ -707,7 +565,7 @@ function GuidesEditor({ guides, onChange }) {
   );
 }
 
-function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, previewMode, mediaUploading }) {
+function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, workspaceConnected, mediaUploading }) {
   const checks = [
     { label: "中文基本内容", ok: translationScore(form.translations["zh-CN"]) === 100 },
     { label: "英文基本内容", ok: translationScore(form.translations.en) === 100 },
@@ -739,7 +597,7 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, pr
               </label>
             ))}
           </div>
-          {previewMode ? <p className="hm-admin-preview-hint">结构预览模式下按钮仅演示操作入口，不会上传文件。</p> : null}
+          {!workspaceConnected ? <p className="hm-admin-preview-hint">连接项目文件夹后，素材将复制到 public/media/products/产品-slug/。</p> : null}
           <div className="hm-admin-media-preview-grid">
             {form.media.map((media, index) => (
               <article key={media.assetKey} className="hm-admin-media-card">
@@ -788,7 +646,7 @@ function MediaOverview({ products, onOpen }) {
       <section className="hm-admin-intro"><div><p className="hm-admin-kicker">MEDIA GOVERNANCE</p><h2>素材不仅要上传，还要确认归属与权利</h2><p>图片、视频和说明书都关联具体型号、用途、语言和授权状态。</p></div></section>
       <section className="hm-admin-panel">
         <PanelHeading eyebrow="MEDIA ASSETS" title="当前产品媒体" description={`${media.length} 项素材`} />
-        <div className="hm-admin-asset-grid">{media.map((item) => <button key={`${item.product.id}-${item.assetKey}`} type="button" onClick={() => onOpen(item.product)}><img src={item.url} alt={item.altZh || ""} /><span><strong>{item.product.translations["zh-CN"].name}</strong><small>{item.role} · {item.assetKey}</small><em className={`hm-admin-rights is-${item.rightsStatus}`}>{item.rightsStatus}</em></span></button>)}</div>
+        <div className="hm-admin-asset-grid">{media.map((item) => <button key={`${item.product.id}-${item.assetKey}`} type="button" onClick={() => onOpen(item.product)}>{item.kind === "video" ? <span className="hm-admin-video-thumb"><Icon name="play" size={24} /><small>VIDEO</small></span> : <img src={item.url} alt={item.altZh || ""} />}<span><strong>{item.product.translations["zh-CN"].name}</strong><small>{item.role} · {item.assetKey}</small><em className={`hm-admin-rights is-${item.rightsStatus}`}>{item.rightsStatus}</em></span></button>)}</div>
         {!media.length ? <div className="hm-admin-empty">暂无媒体记录。</div> : null}
       </section>
     </div>
@@ -811,13 +669,20 @@ function HomepagePlacements({ products, onOpen }) {
   );
 }
 
-function SettingsOverview({ previewMode }) {
+function SettingsOverview({ workspace, supported, onConnect }) {
   return (
     <div className="hm-admin-stack">
       <section className="hm-admin-intro"><div><p className="hm-admin-kicker">SITE SETTINGS</p><h2>品牌与站点配置</h2><p>产品数据与站点固定信息分开管理，避免修改产品时影响品牌结构。</p></div></section>
       <div className="hm-admin-settings-grid">
         <section className="hm-admin-panel"><PanelHeading eyebrow="BRAND" title="品牌基线" /><Field label="中文名称" value="上海恒猫机电" readOnly /><Field label="English name" value="Shanghai Hengmao Machinery" readOnly /><Field label="品牌口号" value="可靠设备，清洁更高效" readOnly /></section>
-        <section className="hm-admin-panel"><PanelHeading eyebrow="DATA SOURCE" title="内容数据源" /><div className="hm-admin-data-status"><span className={previewMode ? "is-preview" : "is-live"}>{previewMode ? "结构预览" : "Supabase v2"}</span><p>{previewMode ? "尚未设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。" : "后台与前台使用同一套 content_v2 内容结构。"}</p></div></section>
+        <section className="hm-admin-panel">
+          <PanelHeading eyebrow="LOCAL WORKSPACE" title="本地内容数据源" />
+          <div className="hm-admin-data-status">
+            <span className={workspace.connected ? "is-live" : "is-preview"}>{workspace.connected ? "本地项目已连接" : "等待连接"}</span>
+            <p>{workspace.connected ? `当前项目：${workspace.name}。产品记录写入 content/products，官网目录写入 public/content/catalog.json。` : supported ? "请选择 hengmao-site 根目录并授予读写权限。" : "当前浏览器不支持本地文件读写，请使用最新版 Chrome 或 Edge。"}</p>
+            <button className="hm-admin-button is-primary" type="button" onClick={onConnect}>{workspace.connected ? "重新连接项目" : "连接项目文件夹"}</button>
+          </div>
+        </section>
       </div>
     </div>
   );

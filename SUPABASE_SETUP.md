@@ -1,75 +1,13 @@
-# Supabase setup for hengmao-site
+# Supabase 方案已停用
 
-The repository contains a Supabase-backed admin prototype, but the currently
-approved public preview still reads local demo content. Supabase is not yet the
-only live content source for the redesigned public site.
+更新日期：2026-07-18
 
-Two schema documents now exist:
+本项目不再依赖 Supabase、Cloudflare D1 或 R2。当前正式内容方案是“本地产品内容工作台”：
 
-- `docs/supabase-schema.sql`: legacy single-language admin prototype.
-- `docs/supabase-content-model-v2.sql`: isolated bilingual v2 structure-review
-  draft in the `content_v2` schema.
+- 在本机后台编辑双语产品资料；
+- 产品源记录写入 `content/products/<slug>/product.json`；
+- 前台目录写入 `public/content/catalog.json`；
+- 图片和视频复制到 `public/media/products/<slug>/`；
+- 通过 GitHub 推送触发 Cloudflare Pages 静态部署。
 
-Do not run the v2 draft against production as a migration. The next backend
-phase must add a reviewed migration, RLS roles, Storage policies, validation,
-and rollback instructions.
-
-## Environment variables
-
-Create a local `.env` file:
-
-```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-Add the same variables in Vercel and Cloudflare Pages:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Only use the anon key in this frontend project. Do not use the service role key.
-
-## Database
-
-For the legacy admin prototype only, the existing reference is:
-
-```sql
--- See docs/supabase-schema.sql
-```
-
-The legacy schema creates:
-
-- `products`
-- `product_images`
-- `site_settings`
-
-It also enables RLS and adds public read policies plus authenticated write policies.
-
-## Storage
-
-Create two public buckets:
-
-- `product-images`
-- `product-videos`
-
-Uploads are performed from `/admin.html` after Supabase Auth login. Public display URLs are generated with `getPublicUrl`.
-
-## Auth
-
-Create an admin user in Supabase Dashboard:
-
-Authentication -> Users -> Add user
-
-Use that email and password to log in at `/admin.html`.
-
-The old `admin/admin123` local demo login has been removed.
-
-## Approved bilingual model
-
-The field contract is defined in:
-
-- `docs/06-content-model.md`
-- `docs/content-inventory/product-record-template.md`
-- `docs/content-schema/product-record-v1.schema.json`
-- `docs/supabase-content-model-v2.sql`
+旧 SQL 文件仅保留为历史设计记录，不应在生产环境执行。当前操作请阅读 `docs/11-local-content-workbench.md`。

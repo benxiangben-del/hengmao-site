@@ -44,7 +44,7 @@ export default function ProductPage({ lang, text, router, catalog }) {
   const hasSpecifications = product.specifications?.length > 0;
   const documents = (product.documents || []).filter((document) => documentHref(document));
   const hasDocuments = documents.length > 0;
-  const isDemo = catalog.source !== "supabase-v2" || product.status === "demo";
+  const isDemo = catalog.source !== "static-content" || product.status === "demo";
 
   return (
     <main id="main-content">

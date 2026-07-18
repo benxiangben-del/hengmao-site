@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-第一阶段“项目审计与产品规范”已经完成。现有网站代码尚未大规模重构，生产构建基线可用。
+第一阶段“项目审计与产品规范”已经完成；新版双语前台与本地内容工作台已落地，生产构建基线可用。
 
-当前实施进度：首批资料已盘点，双语官网骨架、首页视觉样稿和演示产品页已完成；双语产品字段合同、资料模板、机器可读 Schema 和隔离数据库草案已经建立。下一步用一个真实型号验证录入，再推进后台与前台的正式衔接。
+当前实施进度：双语官网骨架、首页视觉、演示产品页与双语产品字段合同已经完成。后台现已改造为“本地产品内容工作台”，无需数据库：产品、双语内容和素材保存在仓库内，经内容校验后通过 GitHub 与 Cloudflare Pages 发布。下一步用一个真实型号完成首轮录入与发布验证。
 
 ## 规范阅读顺序
 
@@ -23,7 +23,8 @@
 | 7 | `07-seo-specification.md` | 设计基线 | 双语 SEO、结构化数据与上线检查 |
 | 8 | `08-development-standards.md` | 已确认 | 代码、测试、安全、数据和发布规范 |
 | 9 | `09-implementation-roadmap.md` | 已确认 | 分阶段实施范围和验收标准 |
-| 10 | `10-cms-supabase-connection.md` | 连接就绪 | 新后台、Supabase 与新版前台的正式连接顺序和验收标准 |
+| 10 | `10-cms-supabase-connection.md` | 已停用/历史 | 旧 Supabase 连接方案的决策记录 |
+| 11 | `11-local-content-workbench.md` | 当前方案 | 本地录入、素材归档、校验、预览和发布流程 |
 
 ## 双语产品模型实施文件
 
@@ -31,9 +32,10 @@
 | --- | --- |
 | `content-inventory/product-record-template.md` | 企业和技术人员填写单个型号资料 |
 | `content-schema/product-record-v1.schema.json` | 批量导入和后台提交的机器校验合同 |
-| `supabase-content-model-v2.sql` | 隔离的 v2 表结构评审草案；不能直接替代生产表 |
-| `supabase-content-v2-production-access.sql` | v2 正式环境角色、RLS 公开读取规则和素材存储策略 |
-| `supabase-schema.sql` | 旧单语言后台兼容参考，不是最终模型 |
+| `content/products/<slug>/product.json` | 每个产品的双语源记录 |
+| `public/content/catalog.json` | 前台读取的已生成产品目录 |
+| `public/media/products/<slug>/` | 产品图片、视频和文件的固定归档目录 |
+| `supabase-*.sql` | 已停用数据库方案的历史记录，不应执行 |
 
 ## 决策优先级
 
@@ -53,7 +55,8 @@
 - 每个阶段开始前说明目标、关键决策、预计修改文件和验收标准。
 - 先复用和迁移真实内容，再删除旧实现。
 - 每个阶段保持可构建、可预览、可回滚。
-- 任何数据库生产迁移前必须备份并验证 RLS。
+- 保存前确认已选择正确的 `hengmao-site` 根目录，发布前导出内容备份。
+- 每次推送前执行 `npm run content:validate` 和 `npm run build`。
 - 产品参数、安装步骤和安全警告必须由企业指定人员审核。
 
 ## 下一步需要的资料

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { demoProduct, heroProducts as demoHeroProducts } from "../content/demoSite.js";
-import { isSupabaseConfigured } from "../lib/supabase.js";
-import { fetchPublicProductRecords, toPublicProduct } from "../lib/contentApiV2.js";
+import { normalizeCatalogDocument, publicRecordsForLocale, toPublicProduct } from "../content/productModel.js";
 
 const demoCatalog = {
   products: [demoProduct],
@@ -24,34 +23,39 @@ function toHeroProduct(product, index) {
 
 export function useProductCatalog(lang) {
   const locale = lang === "en" ? "en" : "zh-CN";
-  const [state, setState] = useState(demoCatalog);
+  const [state, setState] = useState({ ...demoCatalog, loading: true });
 
   useEffect(() => {
     let active = true;
-    if (!isSupabaseConfigured) {
-      setState(demoCatalog);
-      return () => { active = false; };
-    }
     setState((current) => ({ ...current, loading: true, error: null }));
-    fetchPublicProductRecords(locale)
-      .then((records) => {
+    fetch(`/content/catalog.json?catalog=${Date.now()}`, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`静态产品目录读取失败（HTTP ${response.status}）`);
+        return response.json();
+      })
+      .then((value) => {
         if (!active) return;
+        const document = normalizeCatalogDocument(value);
+        const records = publicRecordsForLocale(document.products, locale);
         if (!records.length) {
-          setState({ ...demoCatalog, source: "demo-empty", loading: false, error: null });
+          setState({ ...demoCatalog, source: "static-demo", loading: false, error: null });
           return;
         }
-        const products = records.map(toPublicProduct);
-        const featured = products.filter((product) => product.placements?.homeHero).slice(0, 4);
+        const products = records.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(toPublicProduct);
+        const featured = products
+          .filter((product) => product.placements?.homeHero)
+          .sort((a, b) => (a.placements.homeHeroOrder || 0) - (b.placements.homeHeroOrder || 0))
+          .slice(0, 4);
         setState({
           products,
           heroProducts: (featured.length ? featured : products.slice(0, 4)).map(toHeroProduct),
-          source: "supabase-v2",
+          source: "static-content",
           loading: false,
           error: null,
         });
       })
       .catch((error) => {
-        if (active) setState({ ...demoCatalog, source: "demo-fallback", error });
+        if (active) setState({ ...demoCatalog, source: "static-fallback", loading: false, error });
       });
     return () => { active = false; };
   }, [locale]);
