@@ -172,6 +172,15 @@
 .step-item.is-pending { background: var(--color-gray-50); }
 .safety-notice { border-color: #fedf89; color: #b54708; background: var(--color-warning-bg); }
 .product-video { width: 100%; margin-top: 24px; border-radius: var(--radius-xl); background: var(--color-navy-950); aspect-ratio: 16/9; }
+.specification-table { overflow: hidden; border: 1px solid var(--color-gray-200); border-radius: var(--radius-xl); background: #fff; }
+.specification-row { display: grid; grid-template-columns: minmax(150px, .7fr) 1.3fr; gap: 24px; padding: 17px 22px; border-bottom: 1px solid var(--color-gray-200); }
+.specification-row:last-child { border-bottom: 0; }
+.specification-row span { color: var(--color-gray-600); }
+.specification-row strong { color: var(--color-navy-950); }
+.step-item--safety { border-color: #fedf89; background: var(--color-warning-bg); }
+.document-list { display: grid; gap: 12px; }
+.document-list a { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 1px solid var(--color-gray-200); border-radius: var(--radius-lg); color: var(--color-navy-950); background: #fff; font-weight: 700; transition: border-color .2s ease, transform .2s ease; }
+.document-list a:hover { border-color: var(--color-blue-500); transform: translateY(-1px); }
 .section-spacer { margin-top: 42px; }
 .company-intro { display: grid; grid-template-columns: 1fr .8fr; align-items: end; gap: 80px; margin-bottom: 48px; }
 .company-intro h2 { margin-bottom: 0; }

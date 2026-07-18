@@ -23,6 +23,7 @@
 | 7 | `07-seo-specification.md` | 设计基线 | 双语 SEO、结构化数据与上线检查 |
 | 8 | `08-development-standards.md` | 已确认 | 代码、测试、安全、数据和发布规范 |
 | 9 | `09-implementation-roadmap.md` | 已确认 | 分阶段实施范围和验收标准 |
+| 10 | `10-cms-supabase-connection.md` | 连接就绪 | 新后台、Supabase 与新版前台的正式连接顺序和验收标准 |
 
 ## 双语产品模型实施文件
 
@@ -31,6 +32,7 @@
 | `content-inventory/product-record-template.md` | 企业和技术人员填写单个型号资料 |
 | `content-schema/product-record-v1.schema.json` | 批量导入和后台提交的机器校验合同 |
 | `supabase-content-model-v2.sql` | 隔离的 v2 表结构评审草案；不能直接替代生产表 |
+| `supabase-content-v2-production-access.sql` | v2 正式环境角色、RLS 公开读取规则和素材存储策略 |
 | `supabase-schema.sql` | 旧单语言后台兼容参考，不是最终模型 |
 
 ## 决策优先级

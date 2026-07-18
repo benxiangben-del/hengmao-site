@@ -1,12 +1,12 @@
 import { localizePath, SiteLink } from "../app/router.jsx";
-import { brand, demoProduct } from "../content/demoSite.js";
+import { brand } from "../content/demoSite.js";
 import ModelSearch from "../components/ModelSearch.jsx";
 import ProductCard from "../components/ProductCard.jsx";
 import Icon from "../components/Icon.jsx";
 import ParticleField from "../components/ParticleField.jsx";
 import HeroProductCarousel from "../components/HeroProductCarousel.jsx";
 
-export default function HomePage({ lang, text, router }) {
+export default function HomePage({ lang, text, router, catalog }) {
   const supportItems = [
     { icon: "tool", zh: "安装方法", en: "Installation", zhText: "按型号查找组装、连接与首次启动步骤。", enText: "Find assembly, connection and first-start steps by model." },
     { icon: "play", zh: "使用视频", en: "How-to Videos", zhText: "观看与实际型号对应的操作演示。", enText: "Watch operating videos matched to the exact model." },
@@ -30,21 +30,21 @@ export default function HomePage({ lang, text, router }) {
               <SiteLink className="button button--ghost" to={localizePath(lang, "support")} router={router}>{text.getSupport}</SiteLink>
             </div>
           </div>
-          <HeroProductCarousel lang={lang} text={text} />
+          <HeroProductCarousel lang={lang} text={text} products={catalog.heroProducts} />
         </div>
       </section>
 
       <section className="search-band">
-        <div className="site-container"><ModelSearch lang={lang} text={text} router={router} /></div>
+        <div className="site-container"><ModelSearch lang={lang} text={text} router={router} catalog={catalog} /></div>
       </section>
 
       <section className="section">
         <div className="site-container">
           <div className="section-heading split-heading">
             <div><p className="eyebrow">{lang === "zh" ? "PRODUCTS" : "PRODUCTS"}</p><h2>{lang === "zh" ? "找到适合的清洁设备" : "Find the right cleaning equipment"}</h2></div>
-            <p>{lang === "zh" ? "当前使用一个演示产品验证完整页面结构。正式产品准备好后，可直接通过后台扩展分类与型号。" : "One demo product is used to validate the full page structure. More categories and models can be added through the CMS later."}</p>
+            <p>{catalog.source === "supabase-v2" ? (lang === "zh" ? "这里展示后台已发布并通过当前语言审核的产品。" : "Products published and approved for the current language are shown here.") : (lang === "zh" ? "当前使用演示产品验证完整页面结构；正式内容库接通后将自动读取已发布产品。" : "Demo content validates the page structure until the production content library is connected.")}</p>
           </div>
-          <ProductCard product={demoProduct} lang={lang} text={text} router={router} />
+          <div className="catalog-grid">{catalog.products.slice(0, 3).map((product) => <ProductCard key={product.id || product.slug} product={product} lang={lang} text={text} router={router} />)}</div>
         </div>
       </section>
 

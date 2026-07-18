@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { heroProducts } from "../content/demoSite.js";
 import Icon from "./Icon.jsx";
 
 const AUTOPLAY_DELAY = 5200;
 
-export default function HeroProductCarousel({ lang, text }) {
+export default function HeroProductCarousel({ lang, text, products }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchStartX = useRef(null);
-  const product = heroProducts[activeIndex];
+  const product = products[activeIndex];
 
   function show(index) {
-    const count = heroProducts.length;
+    const count = products.length;
     setActiveIndex((index + count) % count);
   }
 
@@ -27,10 +26,14 @@ export default function HeroProductCarousel({ lang, text }) {
   useEffect(() => {
     if (paused || reducedMotion) return undefined;
     const timer = window.setInterval(() => {
-      setActiveIndex((index) => (index + 1) % heroProducts.length);
+      setActiveIndex((index) => (index + 1) % products.length);
     }, AUTOPLAY_DELAY);
     return () => window.clearInterval(timer);
-  }, [paused, reducedMotion, activeIndex]);
+  }, [paused, reducedMotion, activeIndex, products.length]);
+
+  useEffect(() => {
+    if (activeIndex >= products.length) setActiveIndex(0);
+  }, [activeIndex, products.length]);
 
   function onTouchStart(event) {
     touchStartX.current = event.changedTouches[0]?.clientX ?? null;
@@ -96,7 +99,7 @@ export default function HeroProductCarousel({ lang, text }) {
       </button>
 
       <div className="carousel-dots" role="group" aria-label={lang === "zh" ? "选择机器款式" : "Choose a machine style"}>
-        {heroProducts.map((item, index) => (
+        {products.map((item, index) => (
           <button
             key={item.id}
             type="button"

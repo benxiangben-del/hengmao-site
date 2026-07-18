@@ -10,6 +10,7 @@ import CompanyPage from "./pages/CompanyPage.jsx";
 import ContactPage from "./pages/ContactPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { brand, copy } from "./content/demoSite.js";
+import { useProductCatalog } from "./hooks/useProductCatalog.js";
 
 const pageTitles = {
   home: { zh: "上海恒猫机电｜洗车机与清洁配件", en: "HENGMAO | Car Washers & Cleaning Accessories" },
@@ -25,14 +26,18 @@ export default function App() {
   const router = useRouter();
   const lang = router.locale === "en" ? "en" : "zh";
   const text = copy[lang];
+  const catalog = useProductCatalog(lang);
 
   useEffect(() => {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
-    document.title = pageTitles[router.route]?.[lang] || pageTitles.notFound[lang];
+    const currentProduct = router.route === "product" ? catalog.findBySlug(router.params.slug) : null;
+    document.title = currentProduct?.name?.[lang]
+      ? `${currentProduct.name[lang]} | HENGMAO`
+      : pageTitles[router.route]?.[lang] || pageTitles.notFound[lang];
     window.scrollTo({ top: 0, behavior: "auto" });
-  }, [lang, router.route, router.path]);
+  }, [lang, router.route, router.path, router.params.slug, catalog]);
 
-  const pageProps = { lang, text, router };
+  const pageProps = { lang, text, router, catalog };
   let page;
 
   switch (router.route) {

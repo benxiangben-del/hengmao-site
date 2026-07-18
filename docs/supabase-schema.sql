@@ -90,3 +90,7 @@ on conflict (key) do nothing;
 -- 1. Create public buckets named product-images and product-videos in Supabase Storage.
 -- 2. Public buckets can be read by public URLs returned from getPublicUrl.
 -- 3. Keep uploads/deletes limited to authenticated users with Storage policies in the dashboard.
+-- LEGACY SCHEMA NOTICE
+-- This file belongs to the original single-language admin prototype.
+-- Do not apply it for the redesigned website. New installations use
+-- supabase-content-model-v2.sql followed by supabase-content-v2-production-access.sql.

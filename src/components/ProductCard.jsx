@@ -5,7 +5,7 @@ export default function ProductCard({ product, lang, text, router }) {
   return (
     <article className="product-card">
       <div className="product-card-media">
-        <span className="status-badge">{text.demo}</span>
+        {product.status === "demo" ? <span className="status-badge">{text.demo}</span> : null}
         <img src={product.image} alt={product.name[lang]} />
       </div>
       <div className="product-card-body">
