@@ -1,3 +1,10 @@
+-- LEGACY ADMIN SCHEMA (current prototype only)
+-- This file matches the existing single-language AdminApp/siteApi prototype.
+-- It is retained for compatibility and must not be treated as the approved
+-- bilingual content model. See docs/supabase-content-model-v2.sql for the
+-- isolated v2 structure review draft. Do not replace production tables until
+-- a backup, migration transform, RLS review, and rollback test are complete.
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.products (

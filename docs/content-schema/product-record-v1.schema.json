@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hengmao.example/schemas/product-record-v1.schema.json",
+  "title": "HENGMAO bilingual product record",
+  "description": "Portable import and validation contract for one bilingual HENGMAO product.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "identity", "translations"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "translations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zh-CN", "en"],
+      "properties": {
+        "zh-CN": { "$ref": "#/$defs/translation" },
+        "en": { "$ref": "#/$defs/translation" }
+      }
+    },
+    "specifications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/specification" },
+      "default": []
+    },
+    "packageContents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/packageItem" },
+      "default": []
+    },
+    "guides": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/guide" },
+      "default": []
+    },
+    "media": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/media" },
+      "default": []
+    },
+    "documents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/document" },
+      "default": []
+    },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relation" },
+      "default": []
+    },
+    "placements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/placement" },
+      "default": []
+    },
+    "audit": {
+      "$ref": "#/$defs/audit"
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "slug", "categoryKey", "status", "lifecycleStatus", "sortOrder"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 140
+        },
+        "categoryKey": {
+          "enum": [
+            "portable-washer",
+            "trolley-washer",
+            "spray-gun",
+            "high-pressure-hose",
+            "steel-wire-hose",
+            "accessory"
+          ]
+        },
+        "status": { "$ref": "#/$defs/publicationStatus" },
+        "lifecycleStatus": {
+          "enum": ["active", "discontinued", "upcoming"]
+        },
+        "sortOrder": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "translation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["draft", "review", "published"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 180 },
+        "shortDescription": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "description": { "type": "string", "minLength": 1 },
+        "features": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/localizedListItem" },
+          "default": []
+        },
+        "applications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/localizedListItem" },
+          "default": []
+        },
+        "seo": {
+          "$ref": "#/$defs/seo"
+        },
+        "reviewedBy": { "type": ["string", "null"] },
+        "reviewedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "published" } },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["name", "shortDescription", "description", "seo", "reviewedBy", "reviewedAt"]
+          }
+        }
+      ]
+    },
+    "localizedListItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "title"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "packageItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "nameZh", "nameEn", "quantity", "unitCode"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "nameZh": { "type": "string", "minLength": 1 },
+        "nameEn": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "number", "exclusiveMinimum": 0 },
+        "unitCode": { "type": "string" },
+        "notesZh": { "type": "string" },
+        "notesEn": { "type": "string" },
+        "sortOrder": { "type": "integer", "minimum": 0, "default": 0 }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "description"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 300 }
+      }
+    },
+    "specification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "groupKey",
+        "labelZh",
+        "labelEn",
+        "sortOrder",
+        "isKeySpec",
+        "verificationStatus"
+      ],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "groupKey": {
+          "enum": ["performance", "electrical", "dimensions", "connection", "package", "other"]
+        },
+        "labelZh": { "type": "string", "minLength": 1 },
+        "labelEn": { "type": "string", "minLength": 1 },
+        "valueNumber": { "type": "number" },
+        "valueText": { "type": "string", "minLength": 1 },
+        "unitCode": { "type": ["string", "null"] },
+        "sortOrder": { "type": "integer", "minimum": 0 },
+        "isKeySpec": { "type": "boolean" },
+        "verificationStatus": {
+          "enum": ["unverified", "review", "approved", "rejected"]
+        },
+        "sourceReference": { "type": "string" },
+        "reviewedBy": { "type": ["string", "null"] },
+        "reviewedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "anyOf": [
+        { "required": ["valueNumber"] },
+        { "required": ["valueText"] }
+      ]
+    },
+    "guide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "version", "status", "technicalReviewStatus", "translations"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": {
+          "enum": ["installation", "usage", "safety", "maintenance", "troubleshooting", "faq"]
+        },
+        "version": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/publicationStatus" },
+        "technicalReviewStatus": {
+          "enum": ["unverified", "review", "approved", "changes_requested"]
+        },
+        "reviewedBy": { "type": ["string", "null"] },
+        "reviewedAt": { "type": ["string", "null"], "format": "date-time" },
+        "translations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["zh-CN", "en"],
+          "properties": {
+            "zh-CN": { "$ref": "#/$defs/guideTranslation" },
+            "en": { "$ref": "#/$defs/guideTranslation" }
+          }
+        }
+      }
+    },
+    "guideTranslation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["draft", "review", "published"] },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/guideStep" },
+          "default": []
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/warning" },
+          "default": []
+        },
+        "body": { "type": "string" }
+      }
+    },
+    "guideStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "order", "title", "body"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "order": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "mediaAssetKey": { "type": ["string", "null"] }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "severity", "title", "body"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "severity": { "enum": ["danger", "warning", "caution", "note"] },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 }
+      }
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetKey", "sourceFilename", "kind", "role", "rightsStatus", "isPublic"],
+      "properties": {
+        "assetKey": { "$ref": "#/$defs/key" },
+        "sourceFilename": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["image", "video"] },
+        "role": {
+          "enum": [
+            "cover",
+            "gallery",
+            "detail",
+            "application",
+            "package",
+            "video-demo",
+            "video-installation",
+            "video-usage",
+            "video-maintenance",
+            "poster"
+          ]
+        },
+        "locale": { "enum": ["zh-CN", "en", null] },
+        "altZh": { "type": "string" },
+        "altEn": { "type": "string" },
+        "rightsStatus": {
+          "enum": ["pending", "approved", "restricted", "rejected"]
+        },
+        "rightsSource": { "type": "string" },
+        "isPublic": { "type": "boolean" },
+        "sortOrder": { "type": "integer", "minimum": 0, "default": 0 }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetKey", "sourceFilename", "type", "locale", "version", "isCurrent", "isPublic"],
+      "properties": {
+        "assetKey": { "$ref": "#/$defs/key" },
+        "sourceFilename": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": ["manual", "spec-sheet", "installation-drawing", "certificate", "warranty", "other"]
+        },
+        "locale": { "enum": ["zh-CN", "en", "multilingual"] },
+        "title": { "type": "string" },
+        "version": { "type": "string", "minLength": 1 },
+        "effectiveAt": { "type": ["string", "null"], "format": "date" },
+        "applicableModels": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "isCurrent": { "type": "boolean" },
+        "isPublic": { "type": "boolean" }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetModel", "type", "sortOrder"],
+      "properties": {
+        "targetModel": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["accessory", "compatible", "replacement", "related"] },
+        "noteZh": { "type": "string" },
+        "noteEn": { "type": "string" },
+        "sortOrder": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "sortOrder", "isActive"],
+      "properties": {
+        "key": { "enum": ["home-hero", "home-featured"] },
+        "mediaAssetKey": { "type": ["string", "null"] },
+        "sortOrder": { "type": "integer", "minimum": 0 },
+        "isActive": { "type": "boolean" },
+        "startsAt": { "type": ["string", "null"], "format": "date-time" },
+        "endsAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preparedBy": { "type": "string" },
+        "technicalReviewer": { "type": "string" },
+        "zhReviewer": { "type": "string" },
+        "enReviewer": { "type": "string" },
+        "rightsReviewer": { "type": "string" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "publicationStatus": {
+      "enum": ["draft", "review", "published", "archived"]
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 140
+    }
+  }
+}
