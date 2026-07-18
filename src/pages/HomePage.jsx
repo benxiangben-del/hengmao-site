@@ -4,6 +4,7 @@ import ModelSearch from "../components/ModelSearch.jsx";
 import ProductCard from "../components/ProductCard.jsx";
 import Icon from "../components/Icon.jsx";
 import ParticleField from "../components/ParticleField.jsx";
+import HeroProductCarousel from "../components/HeroProductCarousel.jsx";
 
 export default function HomePage({ lang, text, router }) {
   const supportItems = [
@@ -29,18 +30,7 @@ export default function HomePage({ lang, text, router }) {
               <SiteLink className="button button--ghost" to={localizePath(lang, "support")} router={router}>{text.getSupport}</SiteLink>
             </div>
           </div>
-          <div className="hero-product">
-            <div className="hero-product-halo" aria-hidden="true" />
-            <div className="hero-orbit hero-orbit--outer" aria-hidden="true"><i /><i /><i /></div>
-            <div className="hero-orbit hero-orbit--inner" aria-hidden="true"><i /><i /></div>
-            <div className="hero-product-scan" aria-hidden="true" />
-            <span className="hero-chip">{text.demo}</span>
-            <img src={demoProduct.image} alt={demoProduct.name[lang]} />
-            <div className="hero-product-caption">
-              <span>{demoProduct.category[lang]}</span>
-              <strong>{demoProduct.name[lang]}</strong>
-            </div>
-          </div>
+          <HeroProductCarousel lang={lang} text={text} />
         </div>
       </section>
 

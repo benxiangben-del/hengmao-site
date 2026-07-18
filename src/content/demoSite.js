@@ -21,6 +21,41 @@ export const demoProduct = {
   specs: [],
 };
 
+export const heroProducts = [
+  {
+    id: "portable-black",
+    image: "/media/demo/demo-portable-washer.png",
+    category: { zh: "便携式清洗设备", en: "Portable Cleaning Equipment" },
+    name: { zh: "便携式高压清洗设备（演示）", en: "Portable Pressure Washer (Demo)" },
+    model: { zh: "款式 01 · 型号待确认", en: "Style 01 · Model pending" },
+    size: "standard",
+  },
+  {
+    id: "portable-white-green",
+    image: "/media/demo/demo-portable-washer-white-green.png",
+    category: { zh: "便携式清洗设备", en: "Portable Cleaning Equipment" },
+    name: { zh: "轻量便携清洗设备（演示）", en: "Compact Portable Washer (Demo)" },
+    model: { zh: "款式 02 · 型号待确认", en: "Style 02 · Model pending" },
+    size: "wide",
+  },
+  {
+    id: "portable-red",
+    image: "/media/demo/demo-portable-washer-red.png",
+    category: { zh: "便携式清洗设备", en: "Portable Cleaning Equipment" },
+    name: { zh: "紧凑型清洗设备（演示）", en: "Compact Cleaning Unit (Demo)" },
+    model: { zh: "款式 03 · 型号待确认", en: "Style 03 · Model pending" },
+    size: "compact",
+  },
+  {
+    id: "portable-classic",
+    image: "/media/demo/demo-portable-washer-classic.png",
+    category: { zh: "便携式清洗设备", en: "Portable Cleaning Equipment" },
+    name: { zh: "经典便携清洗设备（演示）", en: "Classic Portable Washer (Demo)" },
+    model: { zh: "款式 04 · 型号待确认", en: "Style 04 · Model pending" },
+    size: "standard",
+  },
+];
+
 export const copy = {
   zh: {
     skipToContent: "跳到主要内容",
