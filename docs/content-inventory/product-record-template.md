@@ -26,6 +26,8 @@
 | 产品状态 | `draft` | `draft/review/published/archived` |
 | 生命周期 | `active` | `active/discontinued/upcoming` |
 | 默认排序 | 0 | 数字越小越靠前 |
+| 发布到中国官网 | 是 | 启用时中文内容必须通过发布检查 |
+| 发布到国际官网 | 是 | 启用时英文内容必须通过发布检查 |
 
 标准分类：
 

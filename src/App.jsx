@@ -11,6 +11,7 @@ import ContactPage from "./pages/ContactPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { brand, copy } from "./content/demoSite.js";
 import { useProductCatalog } from "./hooks/useProductCatalog.js";
+import { siteMarket } from "./config/siteMarket.js";
 
 const pageTitles = {
   home: { zh: "上海恒猫机电｜洗车机与清洁配件", en: "HENGMAO | Car Washers & Cleaning Accessories" },
@@ -30,6 +31,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.documentElement.dataset.siteMarket = siteMarket;
     const currentProduct = router.route === "product" ? catalog.findBySlug(router.params.slug) : null;
     document.title = currentProduct?.name?.[lang]
       ? `${currentProduct.name[lang]} | HENGMAO`

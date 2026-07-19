@@ -7,6 +7,17 @@ export const PRODUCT_CATEGORIES = [
   { key: "accessory", zh: "其他配件", en: "Other Accessories" },
 ];
 
+export const DEFAULT_MARKETS = { cn: true, global: true };
+
+export function normalizeProductMarkets(markets) {
+  if (!markets || (typeof markets.cn !== "boolean" && typeof markets.global !== "boolean")) return { ...DEFAULT_MARKETS };
+  return { cn: Boolean(markets.cn), global: Boolean(markets.global) };
+}
+
+export function normalizeProductRecord(record) {
+  return { ...record, markets: normalizeProductMarkets(record?.markets) };
+}
+
 export const EMPTY_TRANSLATION = {
   status: "draft",
   name: "",
@@ -36,6 +47,7 @@ export function createEmptyProductRecord() {
     categoryKey: "portable-washer",
     status: "draft",
     lifecycleStatus: "active",
+    markets: { ...DEFAULT_MARKETS },
     sortOrder: 0,
     translations: {
       "zh-CN": { ...EMPTY_TRANSLATION },
@@ -95,7 +107,7 @@ export function createCatalogDocument(products, updatedAt = new Date().toISOStri
   return {
     schemaVersion: "1.0",
     updatedAt,
-    products,
+    products: products.map(normalizeProductRecord),
   };
 }
 
@@ -117,6 +129,7 @@ export function toPublicProduct(record) {
     slug: record.slug,
     model: record.model,
     status: record.status,
+    markets: normalizeProductMarkets(record.markets),
     category: categoryForKey(record.categoryKey),
     name: {
       zh: record.translations?.["zh-CN"]?.name || "",
@@ -141,6 +154,9 @@ export function toPublicProduct(record) {
   };
 }
 
-export function publicRecordsForLocale(records, locale) {
-  return records.filter((record) => record.status === "published" && record.translations?.[locale]?.status === "published");
+export function publicRecordsForLocale(records, locale, market) {
+  return records.filter((record) => {
+    const markets = normalizeProductMarkets(record.markets);
+    return record.status === "published" && markets[market] && record.translations?.[locale]?.status === "published";
+  });
 }

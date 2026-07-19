@@ -5,13 +5,22 @@
   "description": "Portable import and validation contract for one bilingual HENGMAO product.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "identity", "translations"],
+  "required": ["schemaVersion", "identity", "markets", "translations"],
   "properties": {
     "schemaVersion": {
       "const": "1.0"
     },
     "identity": {
       "$ref": "#/$defs/identity"
+    },
+    "markets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cn", "global"],
+      "properties": {
+        "cn": { "type": "boolean" },
+        "global": { "type": "boolean" }
+      }
     },
     "translations": {
       "type": "object",

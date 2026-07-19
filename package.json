@@ -8,6 +8,9 @@
     "workbench": "vite --host 127.0.0.1 --port 4175",
     "content:validate": "node scripts/validate-content.mjs",
     "build": "npm run content:validate && vite build",
+    "build:cn": "npm run content:validate && vite build --mode cn --outDir dist-cn",
+    "build:global": "npm run content:validate && vite build --mode global --outDir dist-global",
+    "build:markets": "npm run build:cn && npm run build:global",
     "preview": "vite preview"
   },
   "dependencies": {

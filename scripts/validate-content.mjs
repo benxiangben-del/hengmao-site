@@ -39,6 +39,9 @@ const products = Array.isArray(catalog.products) ? catalog.products : [];
 const unique = { id: new Set(), slug: new Set(), model: new Set() };
 
 for (const product of products) {
+  const markets = product.markets && (typeof product.markets.cn === "boolean" || typeof product.markets.global === "boolean")
+    ? { cn: Boolean(product.markets.cn), global: Boolean(product.markets.global) }
+    : { cn: true, global: true };
   for (const field of ["id", "slug", "model"]) {
     if (!text(product[field])) issue(errors, product, `${field} is required`);
     else if (unique[field].has(product[field])) issue(errors, product, `${field} must be unique (${product[field]})`);
@@ -76,11 +79,14 @@ for (const product of products) {
   if (heroImages.length > 1) issue(errors, product, "a product can have only one home-hero image");
 
   if (product.status !== "published") {
-    if (!text(product.translations?.["zh-CN"]?.name) || !text(product.translations?.en?.name)) issue(warnings, product, "draft is missing a bilingual name");
+    if (markets.cn && !text(product.translations?.["zh-CN"]?.name)) issue(warnings, product, "China-market draft is missing a Chinese name");
+    if (markets.global && !text(product.translations?.en?.name)) issue(warnings, product, "global-market draft is missing an English name");
     continue;
   }
 
-  for (const locale of ["zh-CN", "en"]) {
+  if (!markets.cn && !markets.global) issue(errors, product, "published products must target at least one market");
+  const publishingLocales = [markets.cn ? "zh-CN" : null, markets.global ? "en" : null].filter(Boolean);
+  for (const locale of publishingLocales) {
     const translation = product.translations?.[locale];
     if (translation?.status !== "published") issue(errors, product, `${locale} translation must be published`);
     for (const field of ["name", "shortDescription", "description", "seoTitle", "seoDescription"]) {

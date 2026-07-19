@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { demoProduct, heroProducts as demoHeroProducts } from "../content/demoSite.js";
 import { normalizeCatalogDocument, publicRecordsForLocale, toPublicProduct } from "../content/productModel.js";
+import { marketForLocale } from "../config/siteMarket.js";
 
 const demoCatalog = {
   products: [demoProduct],
@@ -24,6 +25,7 @@ function toHeroProduct(product, index) {
 
 export function useProductCatalog(lang) {
   const locale = lang === "en" ? "en" : "zh-CN";
+  const market = marketForLocale(lang);
   const [state, setState] = useState({ ...demoCatalog, loading: true });
 
   useEffect(() => {
@@ -37,9 +39,9 @@ export function useProductCatalog(lang) {
       .then((value) => {
         if (!active) return;
         const document = normalizeCatalogDocument(value);
-        const records = publicRecordsForLocale(document.products, locale);
+        const records = publicRecordsForLocale(document.products, locale, market);
         if (!records.length) {
-          setState({ ...demoCatalog, source: "static-demo", loading: false, error: null });
+          setState({ ...demoCatalog, market, source: "static-demo", loading: false, error: null });
           return;
         }
         const products = records.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(toPublicProduct);
@@ -52,15 +54,16 @@ export function useProductCatalog(lang) {
           heroProducts: featured.length ? featured.map(toHeroProduct) : demoHeroProducts,
           heroDemoMode: featured.length === 0,
           source: "static-content",
+          market,
           loading: false,
           error: null,
         });
       })
       .catch((error) => {
-        if (active) setState({ ...demoCatalog, source: "static-fallback", loading: false, error });
+        if (active) setState({ ...demoCatalog, market, source: "static-fallback", loading: false, error });
       });
     return () => { active = false; };
-  }, [locale]);
+  }, [locale, market]);
 
   return useMemo(() => ({
     ...state,

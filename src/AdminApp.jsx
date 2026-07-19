@@ -94,6 +94,8 @@ function AdminApp() {
     missingEnglish: products.filter((product) => translationScore(product.translations?.en) < 100).length,
     technicalReview: products.filter((product) => !product.specifications?.length || product.specifications.some((spec) => spec.verificationStatus !== "approved")).length,
     hero: products.filter((product) => product.placements?.homeHero).length,
+    cnPublished: products.filter((product) => product.status === "published" && product.markets?.cn).length,
+    globalPublished: products.filter((product) => product.status === "published" && product.markets?.global).length,
   }), [products]);
 
   useEffect(() => {
@@ -173,6 +175,13 @@ function AdminApp() {
     }));
   }
 
+  function updateMarket(field, value) {
+    setForm((current) => ({
+      ...current,
+      markets: { ...current.markets, [field]: value },
+    }));
+  }
+
   function updateList(listKey, index, field, value) {
     setForm((current) => ({
       ...current,
@@ -223,8 +232,11 @@ function AdminApp() {
     if (record.media.filter((item) => item.role === "cover").length > 1) return "每款产品只能设置一张主图，请把其他图片改为图库或详情图。";
     if (record.media.filter((item) => item.role === "home-hero").length > 1) return "每款产品只能设置一张首页轮播图。";
     if (record.status === "published") {
-      if (translationScore(record.translations["zh-CN"]) < 100 || translationScore(record.translations.en) < 100) return "正式发布前必须完成中英文名称、摘要、介绍和 SEO。";
-      if (record.translations["zh-CN"].status !== "published" || record.translations.en.status !== "published") return "正式发布前，中英文内容都必须单独设为已发布。";
+      if (!record.markets?.cn && !record.markets?.global) return "正式发布前必须至少选择中国站或国际站。";
+      if (record.markets?.cn && translationScore(record.translations["zh-CN"]) < 100) return "发布到中国站前必须完成中文名称、摘要、介绍和 SEO。";
+      if (record.markets?.cn && record.translations["zh-CN"].status !== "published") return "发布到中国站前，中文内容必须设为已发布。";
+      if (record.markets?.global && translationScore(record.translations.en) < 100) return "发布到国际站前必须完成英文名称、摘要、介绍和 SEO。";
+      if (record.markets?.global && record.translations.en.status !== "published") return "发布到国际站前，英文内容必须设为已发布。";
       if (!record.media.some((item) => item.role === "cover" && item.rightsStatus === "approved")) return "正式发布前必须有权属已确认的产品主图。";
       if (record.placements.homeHero && !record.media.some((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved")) return "进入首页轮播的产品必须单独上传一张权属已确认的首页轮播图。";
       if (!record.specifications.length || record.specifications.some((item) => item.verificationStatus !== "approved" || !String(item.sourceReference || "").trim())) return "正式发布前，技术参数必须全部审核通过并填写资料来源。";
@@ -357,6 +369,7 @@ function AdminApp() {
               onTranslation={updateTranslation}
               onGuide={updateGuide}
               onPlacement={updatePlacement}
+              onMarket={updateMarket}
               onList={updateList}
               onAddSpec={addSpecification}
               onAddPackage={addPackageItem}
@@ -384,10 +397,10 @@ function Dashboard({ dashboard, products, onNew, onOpen }) {
       </section>
       <div className="hm-admin-stats">
         <Metric label="产品记录" value={dashboard.total} note="包含草稿与演示" />
-        <Metric label="正式发布" value={dashboard.published} note="前台可公开读取" />
-        <Metric label="英文待完善" value={dashboard.missingEnglish} note="不使用中文自动替代" />
+        <Metric label="中国站发布" value={dashboard.cnPublished} note="中文市场可读取" />
+        <Metric label="国际站发布" value={dashboard.globalPublished} note="全球市场可读取" />
         <Metric label="技术待审核" value={dashboard.technicalReview} note="参数与安全内容" />
-        <Metric label="首页推荐" value={dashboard.hero} note="最多启用 4 款" />
+        <Metric label="首页推荐" value={dashboard.hero} note="各市场最多 4 款" />
       </div>
       <section className="hm-admin-panel">
         <PanelHeading eyebrow="RECENT PRODUCTS" title="最近产品记录" description="从这里继续完善双语内容和发布条件。" />
@@ -410,7 +423,7 @@ function ProductsWorkspace(props) {
   const {
     products, allCount, query, statusFilter, selectedId, form, editorTab, saving, workspaceConnected, mediaUploading,
     onQuery, onStatus, onOpen, onNew, onTab, onRoot, onTranslation, onGuide,
-    onPlacement, onList, onAddSpec, onAddPackage, onRemoveList, onSave, onMediaUpload,
+    onPlacement, onMarket, onList, onAddSpec, onAddPackage, onRemoveList, onSave, onMediaUpload,
   } = props;
   return (
     <div className="hm-admin-products-layout">
@@ -452,7 +465,7 @@ function ProductsWorkspace(props) {
         {editorTab === "en" ? <TranslationEditor locale="en" data={form.translations.en} onChange={onTranslation} /> : null}
         {editorTab === "technical" ? <TechnicalEditor form={form} onList={onList} onAddSpec={onAddSpec} onAddPackage={onAddPackage} onRemove={onRemoveList} /> : null}
         {editorTab === "guides" ? <GuidesEditor guides={form.guides} onChange={onGuide} /> : null}
-        {editorTab === "publishing" ? <PublishingEditor form={form} onRoot={onRoot} onPlacement={onPlacement} onList={onList} onMediaUpload={onMediaUpload} workspaceConnected={workspaceConnected} mediaUploading={mediaUploading} /> : null}
+        {editorTab === "publishing" ? <PublishingEditor form={form} onRoot={onRoot} onPlacement={onPlacement} onMarket={onMarket} onList={onList} onMediaUpload={onMediaUpload} workspaceConnected={workspaceConnected} mediaUploading={mediaUploading} /> : null}
       </section>
     </div>
   );
@@ -567,10 +580,10 @@ function GuidesEditor({ guides, onChange }) {
   );
 }
 
-function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, workspaceConnected, mediaUploading }) {
+function PublishingEditor({ form, onRoot, onPlacement, onMarket, onList, onMediaUpload, workspaceConnected, mediaUploading }) {
   const checks = [
-    { label: "中文基本内容", ok: translationScore(form.translations["zh-CN"]) === 100 },
-    { label: "英文基本内容", ok: translationScore(form.translations.en) === 100 },
+    ...(form.markets?.cn ? [{ label: "中国站中文内容", ok: translationScore(form.translations["zh-CN"]) === 100 && form.translations["zh-CN"].status === "published" }] : []),
+    ...(form.markets?.global ? [{ label: "国际站英文内容", ok: translationScore(form.translations.en) === 100 && form.translations.en.status === "published" }] : []),
     { label: "主图权属确认", ok: form.media.some((item) => item.role === "cover" && item.rightsStatus === "approved") },
     ...(form.placements.homeHero ? [{ label: "独立轮播图", ok: form.media.some((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved") }] : []),
     { label: "技术参数审核", ok: form.specifications.length > 0 && form.specifications.every((item) => item.verificationStatus === "approved") },
@@ -617,6 +630,17 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, wo
         </section>
         <section>
           <h3>发布检查</h3>
+          <div className="hm-admin-market-grid" aria-label="产品发布市场">
+            <label className={form.markets?.cn ? "is-active" : ""}>
+              <input type="checkbox" checked={Boolean(form.markets?.cn)} onChange={(event) => onMarket("cn", event.target.checked)} />
+              <span>CN</span><div><strong>中国官网</strong><small>中文内容、国内客户与售后支持</small></div>
+            </label>
+            <label className={form.markets?.global ? "is-active" : ""}>
+              <input type="checkbox" checked={Boolean(form.markets?.global)} onChange={(event) => onMarket("global", event.target.checked)} />
+              <span>GL</span><div><strong>国际官网</strong><small>英文内容、海外采购与出口市场</small></div>
+            </label>
+          </div>
+          <p className="hm-admin-field-note">产品资料只维护一次，通过发布市场决定进入哪个网站；至少选择一个市场才能正式发布。</p>
           <div className="hm-admin-checklist">{checks.map((check) => <div key={check.label} className={check.ok ? "is-ok" : ""}><span>{check.ok ? "✓" : "!"}</span>{check.label}<em>{check.ok ? "已完成" : "待完善"}</em></div>)}</div>
           <SelectField label="产品发布状态" value={form.status} onChange={(value) => onRoot("status", value)} options={[{ value: "draft", label: "草稿" }, { value: "review", label: "提交审核" }, { value: "published", label: "正式发布" }, { value: "archived", label: "归档" }]} />
           <label className="hm-admin-toggle"><input type="checkbox" checked={form.placements.homeHero} onChange={(event) => onPlacement("homeHero", event.target.checked)} /><span /><div><strong>进入首页机器轮播</strong><small>启用后必须设置独立轮播图；不再自动复用产品主图</small></div></label>

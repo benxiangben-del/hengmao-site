@@ -104,14 +104,15 @@ export function workspaceIsConnected() {
 export async function saveLocalCatalog(products) {
   if (!projectHandle) throw new Error("请先连接 hengmao-site 项目文件夹。");
   const document = createCatalogDocument(products);
+  const normalizedProducts = document.products;
   const serialized = `${JSON.stringify(document, null, 2)}\n`;
 
   const publicContent = await ensureDirectory(projectHandle, ["public", "content"]);
   await writeFile(publicContent, "catalog.json", serialized);
 
   const productRoot = await ensureDirectory(projectHandle, ["content", "products"]);
-  await writeFile(productRoot, "index.json", `${JSON.stringify({ schemaVersion: "1.0", updatedAt: document.updatedAt, products: products.map((item) => ({ id: item.id, slug: item.slug, status: item.status })) }, null, 2)}\n`);
-  for (const product of products) {
+  await writeFile(productRoot, "index.json", `${JSON.stringify({ schemaVersion: "1.0", updatedAt: document.updatedAt, products: normalizedProducts.map((item) => ({ id: item.id, slug: item.slug, status: item.status, markets: item.markets })) }, null, 2)}\n`);
+  for (const product of normalizedProducts) {
     if (!product.slug) continue;
     const directory = await ensureDirectory(productRoot, [product.slug]);
     await writeFile(directory, "product.json", `${JSON.stringify(product, null, 2)}\n`);

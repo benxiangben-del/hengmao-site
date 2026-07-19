@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { defaultSiteLocale } from "../config/siteMarket.js";
 
 const locales = new Set(["zh", "en"]);
 
@@ -15,11 +16,11 @@ export function localizePath(locale, path = "") {
 function parsePath(pathname) {
   const path = normalizePath(pathname);
   if (path === "/") {
-    return { locale: "zh", route: "home", path: "/zh/", params: {} };
+    return { locale: defaultSiteLocale, route: "home", path: `/${defaultSiteLocale}/`, params: {} };
   }
 
   const segments = path.split("/").filter(Boolean);
-  const locale = locales.has(segments[0]) ? segments[0] : "zh";
+  const locale = locales.has(segments[0]) ? segments[0] : defaultSiteLocale;
   const rest = locales.has(segments[0]) ? segments.slice(1) : segments;
 
   if (rest.length === 0) return { locale, route: "home", path, params: {} };
@@ -42,7 +43,7 @@ export function useRouter() {
 
   useEffect(() => {
     if (window.location.pathname === "/") {
-      window.history.replaceState({}, "", "/zh/");
+      window.history.replaceState({}, "", `/${defaultSiteLocale}/`);
       setLocation(currentLocation());
     }
     const onPopState = () => setLocation(currentLocation());
