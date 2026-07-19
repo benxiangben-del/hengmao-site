@@ -111,6 +111,7 @@ export function categoryForKey(key) {
 
 export function toPublicProduct(record) {
   const cover = record.media?.find((item) => item.role === "cover") || record.media?.find((item) => item.kind === "image");
+  const hero = record.media?.find((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved");
   return {
     id: record.id || record.slug,
     slug: record.slug,
@@ -130,6 +131,7 @@ export function toPublicProduct(record) {
       en: record.translations?.en?.description || "",
     },
     image: cover?.url || "",
+    heroImage: hero?.url || "",
     media: record.media || [],
     specifications: record.specifications || [],
     packageContents: record.packageContents || [],

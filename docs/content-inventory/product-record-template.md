@@ -180,7 +180,7 @@ Use the same keys and order as the Chinese record.
 
 | asset key | 原始文件名 | 类型 | 用途 role | 语言 | 中文 alt | English alt | 权属状态 | 是否公开 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 待填写 | 待填写 | image/video | cover/gallery/detail/application/package/video-demo/video-installation/video-usage/video-maintenance/poster | 无语言/zh-CN/en | 待填写 | To be provided | pending | 否 |
+| 待填写 | 待填写 | image/video | cover/home-hero/gallery/detail/application/package/video-demo/video-installation/video-usage/video-maintenance/poster | 无语言/zh-CN/en | 待填写 | To be provided | pending | 否 |
 
 权属状态：`pending/approved/restricted/rejected`。
 
@@ -201,7 +201,7 @@ Use the same keys and order as the Chinese record.
 - 是否进入首页大图轮播：否
 - 轮播顺序：待填写
 - 是否使用产品主图：是
-- 指定轮播素材 asset key：待填写
+- 指定独立轮播素材 asset key：待填写（必须为已授权 `home-hero` 图片，不能留空或复用 `cover`）
 - 展示开始时间：待填写
 - 展示结束时间：待填写
 

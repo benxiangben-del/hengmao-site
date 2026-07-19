@@ -5,6 +5,7 @@ import { normalizeCatalogDocument, publicRecordsForLocale, toPublicProduct } fro
 const demoCatalog = {
   products: [demoProduct],
   heroProducts: demoHeroProducts,
+  heroDemoMode: true,
   source: "demo",
   loading: false,
   error: null,
@@ -13,7 +14,7 @@ const demoCatalog = {
 function toHeroProduct(product, index) {
   return {
     id: product.id || product.slug,
-    image: product.image,
+    image: product.heroImage,
     category: product.category,
     name: product.name,
     model: { zh: product.model, en: product.model },
@@ -43,12 +44,13 @@ export function useProductCatalog(lang) {
         }
         const products = records.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(toPublicProduct);
         const featured = products
-          .filter((product) => product.placements?.homeHero)
+          .filter((product) => product.placements?.homeHero && product.heroImage)
           .sort((a, b) => (a.placements.homeHeroOrder || 0) - (b.placements.homeHeroOrder || 0))
           .slice(0, 4);
         setState({
           products,
-          heroProducts: (featured.length ? featured : products.slice(0, 4)).map(toHeroProduct),
+          heroProducts: featured.length ? featured.map(toHeroProduct) : demoHeroProducts,
+          heroDemoMode: featured.length === 0,
           source: "static-content",
           loading: false,
           error: null,

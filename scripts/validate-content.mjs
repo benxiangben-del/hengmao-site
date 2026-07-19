@@ -72,6 +72,9 @@ for (const product of products) {
     }
   }
 
+  const heroImages = product.media?.filter((item) => item.role === "home-hero") || [];
+  if (heroImages.length > 1) issue(errors, product, "a product can have only one home-hero image");
+
   if (product.status !== "published") {
     if (!text(product.translations?.["zh-CN"]?.name) || !text(product.translations?.en?.name)) issue(warnings, product, "draft is missing a bilingual name");
     continue;
@@ -87,6 +90,7 @@ for (const product of products) {
   const covers = product.media?.filter((item) => item.role === "cover") || [];
   if (covers.length !== 1) issue(errors, product, "published products need exactly one cover image");
   if (!covers.some((item) => item.rightsStatus === "approved")) issue(errors, product, "cover image rights must be approved");
+  if (product.placements?.homeHero && !heroImages.some((item) => item.kind === "image" && item.rightsStatus === "approved")) issue(errors, product, "products placed in the homepage carousel need one approved home-hero image");
   if (!product.specifications?.length) issue(errors, product, "published products need verified specifications");
   for (const spec of product.specifications || []) {
     if (spec.verificationStatus !== "approved" || !text(spec.sourceReference)) issue(errors, product, "every specification must be approved and have a source reference");

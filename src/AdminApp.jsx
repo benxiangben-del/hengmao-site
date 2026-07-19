@@ -221,10 +221,12 @@ function AdminApp() {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.slug)) return "URL slug 只能使用小写字母、数字和连字符。";
     if (!record.translations["zh-CN"].name.trim()) return "中文产品名称不能为空。";
     if (record.media.filter((item) => item.role === "cover").length > 1) return "每款产品只能设置一张主图，请把其他图片改为图库或详情图。";
+    if (record.media.filter((item) => item.role === "home-hero").length > 1) return "每款产品只能设置一张首页轮播图。";
     if (record.status === "published") {
       if (translationScore(record.translations["zh-CN"]) < 100 || translationScore(record.translations.en) < 100) return "正式发布前必须完成中英文名称、摘要、介绍和 SEO。";
       if (record.translations["zh-CN"].status !== "published" || record.translations.en.status !== "published") return "正式发布前，中英文内容都必须单独设为已发布。";
       if (!record.media.some((item) => item.role === "cover" && item.rightsStatus === "approved")) return "正式发布前必须有权属已确认的产品主图。";
+      if (record.placements.homeHero && !record.media.some((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved")) return "进入首页轮播的产品必须单独上传一张权属已确认的首页轮播图。";
       if (!record.specifications.length || record.specifications.some((item) => item.verificationStatus !== "approved" || !String(item.sourceReference || "").trim())) return "正式发布前，技术参数必须全部审核通过并填写资料来源。";
       if (record.guides.safety.technicalReviewStatus !== "approved") return "正式发布前，安全与注意事项必须通过技术审核。";
     }
@@ -570,6 +572,7 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, wo
     { label: "中文基本内容", ok: translationScore(form.translations["zh-CN"]) === 100 },
     { label: "英文基本内容", ok: translationScore(form.translations.en) === 100 },
     { label: "主图权属确认", ok: form.media.some((item) => item.role === "cover" && item.rightsStatus === "approved") },
+    ...(form.placements.homeHero ? [{ label: "独立轮播图", ok: form.media.some((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved") }] : []),
     { label: "技术参数审核", ok: form.specifications.length > 0 && form.specifications.every((item) => item.verificationStatus === "approved") },
     { label: "安全内容审核", ok: form.guides.safety.technicalReviewStatus === "approved" },
   ];
@@ -579,9 +582,9 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, wo
       <div className="hm-admin-publishing-grid">
         <section>
           <h3>产品媒体</h3>
-          <p className="hm-admin-field-note">先保存产品，再上传图片或视频。新素材默认为“权属待确认”，不会直接通过发布检查。</p>
+          <p className="hm-admin-field-note">产品主图用于列表和详情；首页轮播图为独立素材，建议上传透明背景 PNG/WebP。新素材默认为“权属待确认”，不会直接通过发布检查。</p>
           <div className="hm-admin-upload-actions">
-            {[{ role: "cover", label: "上传主图", accept: "image/*" }, { role: "gallery", label: "上传产品图片", accept: "image/*" }, { role: "video-demo", label: "上传产品视频", accept: "video/*" }].map((option) => (
+            {[{ role: "cover", label: "上传产品主图", accept: "image/*" }, { role: "home-hero", label: "上传首页轮播图", accept: "image/png,image/webp,image/*" }, { role: "gallery", label: "上传产品图片", accept: "image/*" }, { role: "video-demo", label: "上传产品视频", accept: "video/*" }].map((option) => (
               <label className={`hm-admin-button is-secondary is-small${mediaUploading ? " is-disabled" : ""}`} key={option.role}>
                 {mediaUploading ? "上传中…" : option.label}
                 <input
@@ -603,7 +606,7 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, wo
               <article key={media.assetKey} className="hm-admin-media-card">
                 {media.kind === "video" ? <div className="hm-admin-video-thumb"><Icon name="play" size={24} /><span>VIDEO</span></div> : <img src={media.url} alt={media.altZh || ""} />}
                 <div><strong>{media.role}</strong><span className={`hm-admin-rights is-${media.rightsStatus}`}>{media.rightsStatus}</span></div>
-                <label>用途<select value={media.role} onChange={(event) => onList("media", index, "role", event.target.value)}><option value="cover">主图 Cover</option><option value="gallery">图库 Gallery</option><option value="detail">详情 Detail</option><option value="application">应用场景</option><option value="package">包装</option><option value="video-demo">产品视频</option><option value="video-installation">安装视频</option><option value="video-usage">使用视频</option><option value="video-maintenance">维护视频</option></select></label>
+                <label>用途<select value={media.role} onChange={(event) => onList("media", index, "role", event.target.value)}><option value="cover">产品主图 Cover</option><option value="home-hero">首页轮播图 Hero</option><option value="gallery">图库 Gallery</option><option value="detail">详情 Detail</option><option value="application">应用场景</option><option value="package">包装</option><option value="video-demo">产品视频</option><option value="video-installation">安装视频</option><option value="video-usage">使用视频</option><option value="video-maintenance">维护视频</option></select></label>
                 <label>权属<select value={media.rightsStatus} onChange={(event) => onList("media", index, "rightsStatus", event.target.value)}><option value="pending">待确认 Pending</option><option value="approved">已批准 Approved</option><option value="restricted">受限 Restricted</option><option value="rejected">拒绝 Rejected</option></select></label>
                 <label>中文替代文字<input value={media.altZh || ""} onChange={(event) => onList("media", index, "altZh", event.target.value)} /></label>
                 <label>English alt text<input value={media.altEn || ""} onChange={(event) => onList("media", index, "altEn", event.target.value)} /></label>
@@ -616,7 +619,7 @@ function PublishingEditor({ form, onRoot, onPlacement, onList, onMediaUpload, wo
           <h3>发布检查</h3>
           <div className="hm-admin-checklist">{checks.map((check) => <div key={check.label} className={check.ok ? "is-ok" : ""}><span>{check.ok ? "✓" : "!"}</span>{check.label}<em>{check.ok ? "已完成" : "待完善"}</em></div>)}</div>
           <SelectField label="产品发布状态" value={form.status} onChange={(value) => onRoot("status", value)} options={[{ value: "draft", label: "草稿" }, { value: "review", label: "提交审核" }, { value: "published", label: "正式发布" }, { value: "archived", label: "归档" }]} />
-          <label className="hm-admin-toggle"><input type="checkbox" checked={form.placements.homeHero} onChange={(event) => onPlacement("homeHero", event.target.checked)} /><span /><div><strong>进入首页机器轮播</strong><small>正式环境最多启用 4 款已发布产品</small></div></label>
+          <label className="hm-admin-toggle"><input type="checkbox" checked={form.placements.homeHero} onChange={(event) => onPlacement("homeHero", event.target.checked)} /><span /><div><strong>进入首页机器轮播</strong><small>启用后必须设置独立轮播图；不再自动复用产品主图</small></div></label>
           {form.placements.homeHero ? <Field label="轮播顺序" type="number" value={form.placements.homeHeroOrder} onChange={(value) => onPlacement("homeHeroOrder", Number(value) || 0)} /> : null}
         </section>
       </div>
@@ -663,7 +666,7 @@ function HomepagePlacements({ products, onOpen }) {
       </section>
       <section className="hm-admin-panel">
         <PanelHeading eyebrow="PRODUCT PLACEMENTS" title="产品推荐位" description="仅已发布产品可进入正式轮播。" />
-        <div className="hm-admin-record-list">{products.filter((product) => product.placements.homeHero).map((product) => <button key={product.id} type="button" onClick={() => onOpen(product)}><ProductThumb product={product} /><span><strong>{product.translations["zh-CN"].name}</strong><small>轮播顺序 {product.placements.homeHeroOrder}</small></span><em className={`hm-admin-status is-${product.status}`}>{statusLabel(product.status)}</em></button>)}</div>
+        <div className="hm-admin-record-list">{products.filter((product) => product.placements.homeHero).map((product) => { const hasHero = product.media?.some((item) => item.role === "home-hero" && item.kind === "image" && item.rightsStatus === "approved"); return <button key={product.id} type="button" onClick={() => onOpen(product)}><ProductThumb product={product} role="home-hero" /><span><strong>{product.translations["zh-CN"].name}</strong><small>轮播顺序 {product.placements.homeHeroOrder} · {hasHero ? "专用轮播图已设置" : "缺少专用轮播图"}</small></span><em className={`hm-admin-status is-${product.status}`}>{statusLabel(product.status)}</em></button>; })}</div>
       </section>
     </div>
   );
@@ -700,9 +703,9 @@ function SectionTitle({ index, title, description }) {
   return <div className="hm-admin-section-title"><span>{index}</span><div><h3>{title}</h3><p>{description}</p></div></div>;
 }
 
-function ProductThumb({ product }) {
-  const cover = product.media?.find((item) => item.role === "cover");
-  return cover ? <img className="hm-admin-product-thumb" src={cover.url} alt="" /> : <span className="hm-admin-product-thumb is-empty">HM</span>;
+function ProductThumb({ product, role = "cover" }) {
+  const image = product.media?.find((item) => item.role === role && item.kind === "image");
+  return image ? <img className="hm-admin-product-thumb" src={image.url} alt="" /> : <span className="hm-admin-product-thumb is-empty">HM</span>;
 }
 
 function Readiness({ value }) {

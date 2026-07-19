@@ -235,14 +235,14 @@
 
 ### 8.2 产品媒体关联 `product_media`
 
-- `role`：`cover/gallery/detail/application/package/video-demo/video-installation/video-usage/video-maintenance/poster`
+- `role`：`cover/home-hero/gallery/detail/application/package/video-demo/video-installation/video-usage/video-maintenance/poster`
 - `locale`：无语言素材为 `null`；带文字、配音或字幕的素材必须指定语言
 - `alt_zh/alt_en`：图片替代文本
 - `caption_zh/caption_en`：可选说明
 - `sort_order`
 - `is_active`
 
-同一媒体可关联多个产品，但每个产品只能有一个有效 `cover`。含第三方品牌、权属待确认或型号不明的素材不得设为有效公开媒体。
+同一媒体可关联多个产品，但每个产品只能有一个有效 `cover` 和一个有效 `home-hero`。`cover` 用于产品列表与详情，`home-hero` 专用于首页科技轮播，建议使用透明背景 PNG/WebP。含第三方品牌、权属待确认或型号不明的素材不得设为有效公开媒体。
 
 ## 9. 下载资料 `product_documents`
 
@@ -279,7 +279,7 @@
 | --- | --- |
 | `placement_key` | 首期为 `home-hero` 或 `home-featured` |
 | `product_id` | 被推荐的正式产品 |
-| `media_asset_id` | 可选；为空时使用产品主图 |
+| `media_asset_id` | 首页轮播必填；必须指向该产品已授权的 `home-hero` 图片，不复用产品主图 |
 | `sort_order` | 轮播顺序 |
 | `is_active` | 是否启用 |
 | `starts_at/ends_at` | 可选展示时间 |
@@ -288,6 +288,7 @@
 
 - `home-hero` 最多启用 4 个产品。
 - 只有已发布产品和已授权媒体可以进入公开轮播。
+- 首页轮播必须使用独立 `home-hero` 图片；缺少专用图时不得以产品主图替代。
 - 推荐位不修改产品本身，也不建立第二份产品资料。
 
 ## 12. 发布状态和语言行为

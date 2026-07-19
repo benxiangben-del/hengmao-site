@@ -30,7 +30,7 @@ export default function HomePage({ lang, text, router, catalog }) {
               <SiteLink className="button button--ghost" to={localizePath(lang, "support")} router={router}>{text.getSupport}</SiteLink>
             </div>
           </div>
-          <HeroProductCarousel lang={lang} text={text} products={catalog.heroProducts} demoMode={catalog.source !== "static-content"} />
+          <HeroProductCarousel lang={lang} text={text} products={catalog.heroProducts} demoMode={catalog.heroDemoMode} />
         </div>
       </section>
 

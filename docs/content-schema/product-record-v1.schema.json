@@ -279,6 +279,7 @@
         "role": {
           "enum": [
             "cover",
+            "home-hero",
             "gallery",
             "detail",
             "application",
