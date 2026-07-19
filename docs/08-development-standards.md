@@ -144,7 +144,7 @@ tests/
 1. 依赖安装完整性检查
 2. lint/格式检查（工具引入后）
 3. 自动化测试（对应范围）
-4. `npm run build`
+4. Windows PowerShell 执行 `npm.cmd run build`（其他终端可执行 `npm run build`）
 5. 桌面与移动关键页面视觉检查
 6. Git diff 审查
 
@@ -194,4 +194,3 @@ tests/
 - 双语、移动端、安全和 SEO 不是上线末期补丁。
 - 数据库变更可追踪并经过权限测试。
 - 不把秘密、归档和生成文件提交到 Git。
-

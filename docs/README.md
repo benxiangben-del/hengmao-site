@@ -56,7 +56,7 @@
 - 先复用和迁移真实内容，再删除旧实现。
 - 每个阶段保持可构建、可预览、可回滚。
 - 保存前确认已选择正确的 `hengmao-site` 根目录，发布前导出内容备份。
-- 每次推送前执行 `npm run content:validate` 和 `npm run build`。
+- Windows PowerShell 中每次推送前执行 `npm.cmd run content:validate` 和 `npm.cmd run build`。
 - 产品参数、安装步骤和安全警告必须由企业指定人员审核。
 
 ## 下一步需要的资料

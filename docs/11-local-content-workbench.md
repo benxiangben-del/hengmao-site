@@ -27,7 +27,7 @@ hengmao-site/
 ## 3. 打开工作台
 
 1. 使用最新版 Chrome 或 Edge。
-2. 在项目目录运行 `npm run workbench`。
+2. 在 Windows PowerShell 的项目目录运行 `npm.cmd run workbench`。使用 `.cmd` 可以避免部分电脑的 PowerShell 执行策略拦截 `npm.ps1`。
 3. 打开 `http://127.0.0.1:4175/admin.html`。
 4. 点击“连接项目文件夹”。
 5. 选择 `C:\Users\XR\Desktop\hengmao-site` 并允许读写。
@@ -51,8 +51,8 @@ hengmao-site/
 推送前运行：
 
 ```powershell
-npm run content:validate
-npm run build
+npm.cmd run content:validate
+npm.cmd run build
 ```
 
 然后检查 Git 变更，提交并推送到当前 GitHub 分支。Cloudflare Pages 会按现有 Git 集成自动构建和部署。数据库、付款地址和 Cloudflare 资源绑定都不再需要。
