@@ -19,7 +19,6 @@ export default function HomePage({ lang, text, router, catalog }) {
       <section className="home-hero">
         <ParticleField />
         <div className="hero-grid-overlay" aria-hidden="true" />
-        <div className="hero-light-sweep" aria-hidden="true" />
         <div className="site-container hero-layout">
           <div className="hero-copy">
             <p className="eyebrow eyebrow--light">{lang === "zh" ? "清洁设备 · 产品与支持" : "Cleaning Equipment · Products & Support"}</p>

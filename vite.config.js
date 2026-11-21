@@ -1,10 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
+import { publicCatalog } from "./scripts/public-catalog.mjs";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: "/",
-  plugins: [react()],
+  publicDir: command === "build" ? false : "public",
+  plugins: [react(), publicCatalog()],
   build: {
     rollupOptions: {
       input: {
@@ -13,4 +15,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

@@ -4,6 +4,7 @@ const paths = {
   menu: <><path d="M4 7h16M4 12h16M4 17h16"/></>,
   close: <><path d="m6 6 12 12M18 6 6 18"/></>,
   play: <path d="m9 7 8 5-8 5Z"/>,
+  pause: <path d="M9 6v12m6-12v12"/>,
   download: <><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></>,
   check: <path d="m5 12 4 4L19 6"/>,
   shield: <path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Z"/>,

@@ -1,4 +1,5 @@
 import { createCatalogDocument, createDemoProductRecord, normalizeCatalogDocument } from "../content/productModel.js";
+import { notifyCatalogSaved } from "./catalogUpdates.js";
 
 const DB_NAME = "hengmao-local-workspace";
 const DB_STORE = "handles";
@@ -107,9 +108,6 @@ export async function saveLocalCatalog(products) {
   const normalizedProducts = document.products;
   const serialized = `${JSON.stringify(document, null, 2)}\n`;
 
-  const publicContent = await ensureDirectory(projectHandle, ["public", "content"]);
-  await writeFile(publicContent, "catalog.json", serialized);
-
   const productRoot = await ensureDirectory(projectHandle, ["content", "products"]);
   await writeFile(productRoot, "index.json", `${JSON.stringify({ schemaVersion: "1.0", updatedAt: document.updatedAt, products: normalizedProducts.map((item) => ({ id: item.id, slug: item.slug, status: item.status, markets: item.markets })) }, null, 2)}\n`);
   for (const product of normalizedProducts) {
@@ -117,6 +115,9 @@ export async function saveLocalCatalog(products) {
     const directory = await ensureDirectory(productRoot, [product.slug]);
     await writeFile(directory, "product.json", `${JSON.stringify(product, null, 2)}\n`);
   }
+  const publicContent = await ensureDirectory(projectHandle, ["public", "content"]);
+  await writeFile(publicContent, "catalog.json", serialized);
+  notifyCatalogSaved();
   return document;
 }
 

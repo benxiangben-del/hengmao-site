@@ -25,14 +25,19 @@ export default function ParticleField() {
     if (!canvas || !container) return undefined;
 
     const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return undefined;
+
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const coarsePointer = window.matchMedia("(pointer: coarse)");
+    const narrowScreen = window.matchMedia("(max-width: 820px)");
     let width = 0;
     let height = 0;
     let particles = [];
     let frame = 0;
-    let running = true;
+    let lastDraw = 0;
     const pointer = { x: 0, y: 0, active: false };
+
+    const lightweight = () => narrowScreen.matches || coarsePointer.matches;
 
     function resize() {
       const rect = container.getBoundingClientRect();
@@ -44,15 +49,15 @@ export default function ParticleField() {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const density = coarsePointer.matches ? MOBILE_DENSITY : DESKTOP_DENSITY;
-      const targetCount = Math.min(coarsePointer.matches ? 34 : 78, Math.max(20, Math.round((width * height) / density)));
+      const density = lightweight() ? MOBILE_DENSITY : DESKTOP_DENSITY;
+      const targetCount = Math.min(lightweight() ? 34 : 78, Math.max(20, Math.round((width * height) / density)));
       particles = Array.from({ length: targetCount }, (_, index) => createParticle(width, height, index));
       draw(performance.now(), false);
     }
 
     function draw(time, update = true) {
       context.clearRect(0, 0, width, height);
-      const connectionDistance = coarsePointer.matches ? 92 : 124;
+      const connectionDistance = lightweight() ? 92 : 124;
 
       particles.forEach((particle, index) => {
         if (update) {
@@ -63,7 +68,7 @@ export default function ParticleField() {
           if (particle.y < -10) particle.y = height + 10;
           if (particle.y > height + 10) particle.y = -10;
 
-          if (pointer.active && !coarsePointer.matches) {
+          if (pointer.active && !lightweight()) {
             const dx = pointer.x - particle.x;
             const dy = pointer.y - particle.y;
             const distance = Math.hypot(dx, dy);
@@ -102,14 +107,17 @@ export default function ParticleField() {
     }
 
     function animate(time) {
-      if (!running) return;
-      draw(time, true);
+      if (!lightweight() || time - lastDraw >= 32) {
+        draw(time, true);
+        lastDraw = time;
+      }
       frame = window.requestAnimationFrame(animate);
     }
 
     function start() {
       window.cancelAnimationFrame(frame);
-      if (reducedMotion.matches || document.hidden) {
+      if (document.hidden) return;
+      if (reducedMotion.matches) {
         draw(performance.now(), false);
         return;
       }
@@ -117,6 +125,7 @@ export default function ParticleField() {
     }
 
     function onPointerMove(event) {
+      if (lightweight()) return;
       const rect = container.getBoundingClientRect();
       pointer.x = event.clientX - rect.left;
       pointer.y = event.clientY - rect.top;
@@ -131,23 +140,31 @@ export default function ParticleField() {
       start();
     }
 
+    function onScreenChange() {
+      resize();
+      start();
+    }
+
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     container.addEventListener("pointermove", onPointerMove, { passive: true });
     container.addEventListener("pointerleave", onPointerLeave);
     document.addEventListener("visibilitychange", onVisibilityChange);
     reducedMotion.addEventListener("change", start);
+    narrowScreen.addEventListener("change", onScreenChange);
+    coarsePointer.addEventListener("change", onScreenChange);
     resize();
     start();
 
     return () => {
-      running = false;
       window.cancelAnimationFrame(frame);
       observer.disconnect();
       container.removeEventListener("pointermove", onPointerMove);
       container.removeEventListener("pointerleave", onPointerLeave);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       reducedMotion.removeEventListener("change", start);
+      narrowScreen.removeEventListener("change", onScreenChange);
+      coarsePointer.removeEventListener("change", onScreenChange);
     };
   }, []);
 

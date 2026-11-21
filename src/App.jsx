@@ -36,8 +36,11 @@ export default function App() {
     document.title = currentProduct?.name?.[lang]
       ? `${currentProduct.name[lang]} | HENGMAO`
       : pageTitles[router.route]?.[lang] || pageTitles.notFound[lang];
-    window.scrollTo({ top: 0, behavior: "auto" });
   }, [lang, router.route, router.path, router.params.slug, catalog]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [router.path]);
 
   const pageProps = { lang, text, router, catalog };
   let page;

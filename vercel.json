@@ -5,7 +5,7 @@
       "destination": "/admin.html"
     },
     {
-      "source": "/((?!admin(?:\\.html)?$|assets/|media/).*)",
+      "source": "/((?!admin(?:\\.html)?$|assets/|media/|content/|favicon\\.svg$).*)",
       "destination": "/index.html"
     }
   ]

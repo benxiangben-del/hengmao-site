@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { demoProduct, heroProducts as demoHeroProducts } from "../content/demoSite.js";
 import { normalizeCatalogDocument, publicRecordsForLocale, toPublicProduct } from "../content/productModel.js";
 import { marketForLocale } from "../config/siteMarket.js";
+import { openCatalogUpdates } from "../lib/catalogUpdates.js";
 
 const demoCatalog = {
   products: [demoProduct],
@@ -27,6 +28,16 @@ export function useProductCatalog(lang) {
   const locale = lang === "en" ? "en" : "zh-CN";
   const market = marketForLocale(lang);
   const [state, setState] = useState({ ...demoCatalog, loading: true });
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const channel = openCatalogUpdates();
+    if (!channel) return undefined;
+    channel.onmessage = (event) => {
+      if (event.data === "saved") setRevision((current) => current + 1);
+    };
+    return () => channel.close();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -63,7 +74,7 @@ export function useProductCatalog(lang) {
         if (active) setState({ ...demoCatalog, market, source: "static-fallback", loading: false, error });
       });
     return () => { active = false; };
-  }, [locale, market]);
+  }, [locale, market, revision]);
 
   return useMemo(() => ({
     ...state,
